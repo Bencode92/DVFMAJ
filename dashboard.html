@@ -220,10 +220,12 @@ const RAW = "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH;
 
 const AS_OF = new Date(2025, 9, 31); // Oct 31, 2025
 const HALF_LIFE_DAYS = 30.4375 * 12;
-const BETA_SURFACE = -0.20;
 const Q_LOW = 0.10;
 const Q_HIGH = 0.90;
 const MIN_N = 20;
+const MIN_N_FALLBACK = 5; // seuil min pour fallback dept
+const MAD_THRESHOLD = 3.5; // seuils MAD pour outliers
+const TREND_DAYS = 180; // fenetre "recent" pour tendance
 
 const VALID_PAT = [/^Capital_\d{2,3}[A-B]?\.csv$/i, /^loyer_1ou2p\.csv$/i, /^loyer_3p\.csv$/i];
 
@@ -477,17 +479,18 @@ function parseLoyerCSV(text) {
 }
 
 // ===================================================================
-// TRANSFORM PIPELINE (equivalent transform.py)
+// TRANSFORM PIPELINE — v2 ameliore
 // ===================================================================
 function transformPipeline(rawRows) {
-  // 1) Filter
   const asOf = AS_OF.getTime();
+
+  // 1) Filtre : Vente uniquement (exclut VEFA), Appartement, surf >= 9
   const filtered = rawRows.filter(r =>
     r.nature === "Vente" && r.type === "Appartement" &&
     r.surf >= 9 && r.date !== "" && new Date(r.date).getTime() <= asOf
   );
 
-  // 2) Aggregate by id_mutation
+  // 2) Agregation par id_mutation
   const groups = new Map();
   for (const r of filtered) {
     let g = groups.get(r.id);
@@ -497,7 +500,7 @@ function transformPipeline(rawRows) {
     if (r.pieces > g.pieces) g.pieces = r.pieces;
   }
 
-  // 3) Single apartment, pieces <= 5, prix_m2 > 0
+  // 3) Single appart, pieces 1-5, prix_m2 > 0
   const muts = [];
   for (const [, g] of groups) {
     if (g.n !== 1 || g.pieces < 1 || g.pieces > 5 || g.surf <= 0) continue;
@@ -513,37 +516,75 @@ function transformPipeline(rawRows) {
     });
   }
 
-  // 4) Surface trimming by (dept, bucket)
+  // 4) Surface trimming p10-p90 par (dept, bucket)
   const gk = r => r.dept + "|" + r.bucket;
   const surfQ = computeGroupQuantiles(muts, gk, r => r.surf, r => r.w, [Q_LOW, 0.5, Q_HIGH]);
 
   const afterSurf = muts.filter(r => {
-    const k = gk(r);
-    const q = surfQ.get(k);
+    const q = surfQ.get(gk(r));
     if (!q || q[0] == null || q[2] == null) return true;
     return r.surf >= q[0] && r.surf <= q[2];
   });
 
-  // 5) Adjust price by surface elasticity
+  // 5) Beta surface LOCAL par zone de prix du departement
+  //    Calcul du prix median par dept pour classer en zones
+  const deptMedians = computeGroupQuantiles(afterSurf, r => r.dept, r => r.pm2, r => r.w, [0.5]);
+  function getBeta(dept) {
+    const med = deptMedians.get(dept);
+    const m = med ? med[0] : null;
+    if (m == null) return -0.20;
+    if (m >= 8000) return -0.10; // zones cheres (Paris, Hauts-de-Seine premium)
+    if (m >= 5000) return -0.18; // zones intermediaires
+    return -0.28;                 // zones accessibles
+  }
+
   const adjusted = afterSurf.map(r => {
-    const k = gk(r);
-    const q = surfQ.get(k);
+    const q = surfQ.get(gk(r));
     const sRef = q ? q[1] : null;
+    const beta = getBeta(r.dept);
     const pm2Adj = (sRef && sRef > 0)
-      ? Math.exp(Math.log(r.pm2) - BETA_SURFACE * (Math.log(r.surf) - Math.log(sRef)))
+      ? Math.exp(Math.log(r.pm2) - beta * (Math.log(r.surf) - Math.log(sRef)))
       : r.pm2;
     return { ...r, pm2Adj };
   }).filter(r => r.pm2Adj > 0);
 
-  // 6) Price trimming
-  const priceQ = computeGroupQuantiles(adjusted, gk, r => r.pm2Adj, r => r.w, [Q_LOW, Q_HIGH]);
-
-  return adjusted.filter(r => {
+  // 6) Trimming prix par MAD au lieu de p10-p90 fixe
+  //    |prix - mediane| < MAD_THRESHOLD * MAD par (dept, bucket)
+  const groupedAdj = new Map();
+  for (const r of adjusted) {
     const k = gk(r);
-    const q = priceQ.get(k);
-    if (!q || q[0] == null || q[1] == null) return true;
-    return r.pm2Adj >= q[0] && r.pm2Adj <= q[1];
-  }).map(r => ({ ...r, pm2: r.pm2Adj }));
+    if (!groupedAdj.has(k)) groupedAdj.set(k, []);
+    groupedAdj.get(k).push(r);
+  }
+
+  const kept = [];
+  for (const [, grp] of groupedAdj) {
+    const sorted = grp.map(r => [r.pm2Adj, r.w]).sort((a,b) => a[0]-b[0]);
+    const sv = sorted.map(s=>s[0]), sw = sorted.map(s=>s[1]);
+    const tot = sw.reduce((s,w)=>s+w, 0);
+    if (tot <= 0) { kept.push(...grp); continue; }
+
+    // Mediane
+    let cum=0; let med=sv[sv.length-1];
+    const tgt = 0.5*tot;
+    for (let i=0; i<sv.length; i++) { cum+=sw[i]; if(cum>=tgt){med=sv[i];break;} }
+
+    // MAD
+    const devs = sv.map((v,i) => [Math.abs(v-med), sw[i]]).sort((a,b)=>a[0]-b[0]);
+    const dv=devs.map(d=>d[0]), dw=devs.map(d=>d[1]);
+    const dtot = dw.reduce((s,w)=>s+w,0);
+    let dcum=0, rawMad=dv[dv.length-1];
+    for (let i=0;i<dv.length;i++){dcum+=dw[i];if(dcum>=0.5*dtot){rawMad=dv[i];break;}}
+    const mad = 1.4826 * rawMad;
+
+    // Filtre : garder si |prix - med| < threshold * MAD
+    const limit = mad > 0 ? MAD_THRESHOLD * mad : Infinity;
+    for (const r of grp) {
+      if (Math.abs(r.pm2Adj - med) <= limit) kept.push(r);
+    }
+  }
+
+  return kept.map(r => ({ ...r, pm2: r.pm2Adj }));
 }
 
 // ===================================================================
@@ -591,81 +632,149 @@ function weightedMedian(vals, ws) {
 }
 
 // ===================================================================
-// ANALYTICS PIPELINE (equivalent analytics.py)
+// ANALYTICS PIPELINE — v2 : fallback dept + tendance + fiabilite
 // ===================================================================
 function analyticsPipeline(vente, loyer12, loyer3p) {
-  // Build loyer lookup: normalized name -> { l12, l3p }
+  // Loyer lookup
   const loyerMap = new Map();
   for (const r of loyer12) { const k = norm(r.lib); loyerMap.set(k, { l12: r.loy, l3p: null }); }
   for (const r of loyer3p) { const k = norm(r.lib); const e = loyerMap.get(k) || { l12: null }; e.l3p = r.loy; loyerMap.set(k, e); }
 
-  // Group by (dept, codeC, commune, bucket)
-  const groups = new Map();
-  for (const r of vente) {
-    const k = r.dept + "|" + r.codeC + "|" + r.commune + "|" + r.bucket;
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(r);
-  }
+  // Quantile helper
+  const qFn = (sv, sw, t, q) => { let c=0; const tgt=q*t; for(let i=0;i<sv.length;i++){c+=sw[i];if(c>=tgt)return sv[i];} return null; };
 
-  const stats = [];
-  for (const [k, rows] of groups) {
-    if (rows.length < MIN_N) continue;
-    const [dept, codeC, commune, bucket] = k.split("|");
-
+  // Compute stats pour un groupe de rows
+  function computeStats(rows, dept, codeC, commune, bucket, sourceLevel) {
     const vals = rows.map(r => r.pm2);
     const ws = rows.map(r => r.w);
-    const surfs = rows.filter(r => r.surf > 0).map(r => r.surf);
-    const ages = rows.filter(r => r.ageDays != null).map(r => r.ageDays);
-    const surfWs = rows.filter(r => r.surf > 0).map(r => r.w);
-    const ageWs = rows.filter(r => r.ageDays != null).map(r => r.w);
 
-    // Sort for quantiles
-    const sorted = vals.map((v, i) => [v, ws[i]]).sort((a, b) => a[0] - b[0]);
-    const sVals = sorted.map(s => s[0]), sWs = sorted.map(s => s[1]);
-    const tot = sWs.reduce((s, w) => s + w, 0);
+    const sorted = vals.map((v,i) => [v,ws[i]]).sort((a,b) => a[0]-b[0]);
+    const sV = sorted.map(s=>s[0]), sW = sorted.map(s=>s[1]);
+    const tot = sW.reduce((s,w)=>s+w, 0);
+    if (tot <= 0) return null;
 
-    const qFn = (sv, sw, t, q) => { let c=0; const tgt=q*t; for(let i=0;i<sv.length;i++){c+=sw[i];if(c>=tgt)return sv[i];} return null; };
-
-    const med = qFn(sVals, sWs, tot, 0.5);
-    const p25 = qFn(sVals, sWs, tot, 0.25);
-    const p75 = qFn(sVals, sWs, tot, 0.75);
-
-    // Mean
-    const num = sVals.reduce((s, v, i) => s + v * sWs[i], 0);
-    const meanW = tot > 0 ? num / tot : null;
+    const med = qFn(sV, sW, tot, 0.5);
+    const p25 = qFn(sV, sW, tot, 0.25);
+    const p75 = qFn(sV, sW, tot, 0.75);
+    const num = sV.reduce((s,v,i)=>s+v*sW[i], 0);
+    const meanW = num / tot;
 
     // MAD
     let madW = null;
     if (med != null) {
-      const devs = sVals.map((v, i) => [Math.abs(v - med), sWs[i]]).sort((a, b) => a[0] - b[0]);
-      const dV = devs.map(d => d[0]), dW = devs.map(d => d[1]);
-      const dTot = dW.reduce((s, w) => s + w, 0);
-      const rawMad = qFn(dV, dW, dTot, 0.5);
-      if (rawMad != null) madW = 1.4826 * rawMad;
+      const devs = sV.map((v,i)=>[Math.abs(v-med),sW[i]]).sort((a,b)=>a[0]-b[0]);
+      const dV=devs.map(d=>d[0]), dW=devs.map(d=>d[1]), dT=dW.reduce((s,w)=>s+w,0);
+      const rm = qFn(dV,dW,dT,0.5);
+      if (rm!=null) madW = 1.4826*rm;
     }
 
     // N eff
-    const w2 = ws.reduce((s, w) => s + w * w, 0);
-    const nEff = w2 > 0 ? (tot * tot) / w2 : 0;
+    const w2 = ws.reduce((s,w)=>s+w*w, 0);
+    const nEff = w2>0 ? (tot*tot)/w2 : 0;
 
-    // Surf median, age median
-    const surfMed = weightedMedian(surfs, surfWs);
-    const ageMed = weightedMedian(ages, ageWs);
+    // Surf + age medians
+    const sr = rows.filter(r=>r.surf>0), ar = rows.filter(r=>r.ageDays!=null);
+    const surfMed = weightedMedian(sr.map(r=>r.surf), sr.map(r=>r.w));
+    const ageMed = weightedMedian(ar.map(r=>r.ageDays), ar.map(r=>r.w));
+
+    // Tendance : mediane des < 6 mois vs mediane des >= 6 mois
+    const recent = rows.filter(r => r.ageDays <= TREND_DAYS);
+    const older = rows.filter(r => r.ageDays > TREND_DAYS);
+    let tendance = null;
+    if (recent.length >= 5 && older.length >= 5) {
+      const medRecent = weightedMedian(recent.map(r=>r.pm2), recent.map(r=>r.w));
+      const medOlder = weightedMedian(older.map(r=>r.pm2), older.map(r=>r.w));
+      if (medRecent && medOlder && medOlder > 0) {
+        tendance = Math.round((medRecent / medOlder - 1) * 10000) / 100; // en %
+      }
+    }
+
+    // Fiabilite : A (excellent), B (bon), C (faible)
+    const cv = (madW && med) ? madW / med : 1;
+    let fiabilite;
+    if (nEff >= 30 && cv < 0.25) fiabilite = "A";
+    else if (nEff >= 15 && cv < 0.40) fiabilite = "B";
+    else fiabilite = "C";
 
     // Loyer
     const lk = norm(commune);
     const loyer = loyerMap.get(lk);
     let loyerVal = null;
-    if (loyer) loyerVal = (bucket === "1" || bucket === "2") ? loyer.l12 : loyer.l3p;
+    if (loyer) loyerVal = (bucket==="1"||bucket==="2") ? loyer.l12 : loyer.l3p;
 
-    stats.push({
+    return {
       code_departement: dept, code_commune: codeC, nom_commune: commune, piece_bucket: bucket,
       ref_m2: med, ref_raw: med, mean_w: meanW, n_mut: rows.length, n_eff: nEff,
-      mad_w: madW, p25, p75, surf_med: surfMed, age_med_j: ageMed, Loyer: loyerVal, source_level: "commune",
-    });
+      mad_w: madW, p25, p75, surf_med: surfMed, age_med_j: ageMed,
+      Loyer: loyerVal, source_level: sourceLevel,
+      tendance, fiabilite,
+    };
   }
 
-  stats.sort((a, b) => norm(a.nom_commune).localeCompare(norm(b.nom_commune)) || a.piece_bucket.localeCompare(b.piece_bucket));
+  // --- Grouper par commune ---
+  const communeGroups = new Map();
+  for (const r of vente) {
+    const k = r.dept+"|"+r.codeC+"|"+r.commune+"|"+r.bucket;
+    if (!communeGroups.has(k)) communeGroups.set(k, []);
+    communeGroups.get(k).push(r);
+  }
+
+  // --- Grouper par departement (pour fallback) ---
+  const deptGroups = new Map();
+  for (const r of vente) {
+    const k = r.dept+"|"+r.bucket;
+    if (!deptGroups.has(k)) deptGroups.set(k, []);
+    deptGroups.get(k).push(r);
+  }
+
+  const stats = [];
+  const communesDone = new Set(); // track commune|bucket deja traitees
+
+  // Pass 1 : communes avec assez de data (n >= MIN_N)
+  for (const [k, rows] of communeGroups) {
+    if (rows.length < MIN_N) continue;
+    const [dept, codeC, commune, bucket] = k.split("|");
+    const s = computeStats(rows, dept, codeC, commune, bucket, "commune");
+    if (s && s.ref_m2 != null) { stats.push(s); communesDone.add(k); }
+  }
+
+  // Pass 2 : fallback departement pour communes avec MIN_N_FALLBACK <= n < MIN_N
+  for (const [k, rows] of communeGroups) {
+    if (communesDone.has(k)) continue;
+    if (rows.length < MIN_N_FALLBACK) continue;
+    const [dept, codeC, commune, bucket] = k.split("|");
+
+    // Stats commune (insuffisantes mais existantes)
+    const communeStats = computeStats(rows, dept, codeC, commune, bucket, "commune_fallback");
+    if (!communeStats) continue;
+
+    // Stats departement pour le meme bucket
+    const deptK = dept+"|"+bucket;
+    const deptRows = deptGroups.get(deptK);
+    if (!deptRows || deptRows.length < MIN_N) {
+      // Pas assez au dept non plus -> on prend la commune telle quelle avec fiabilite C
+      communeStats.fiabilite = "C";
+      communeStats.source_level = "commune_small";
+      stats.push(communeStats);
+      continue;
+    }
+
+    // Shrink : alpha * commune + (1-alpha) * departement
+    const deptStats = computeStats(deptRows, dept, "", "", bucket, "dept");
+    if (!deptStats || !deptStats.ref_m2) {
+      communeStats.fiabilite = "C";
+      stats.push(communeStats);
+      continue;
+    }
+
+    const alpha = communeStats.n_eff / (communeStats.n_eff + 75);
+    communeStats.ref_m2 = Math.round((alpha * communeStats.ref_raw + (1-alpha) * deptStats.ref_m2) * 100) / 100;
+    communeStats.source_level = "commune_shrink";
+    communeStats.fiabilite = communeStats.fiabilite === "A" ? "B" : "C";
+    stats.push(communeStats);
+  }
+
+  stats.sort((a,b) => norm(a.nom_commune).localeCompare(norm(b.nom_commune)) || a.piece_bucket.localeCompare(b.piece_bucket));
   return stats;
 }
 
@@ -682,6 +791,8 @@ function buildVillesJson(stats) {
     const p = {};
     if (r.ref_m2 != null) p.prix_m2 = Math.round(r.ref_m2 * 100) / 100;
     if (r.Loyer != null) p.loyer_m2 = Math.round(r.Loyer * 100) / 100;
+    if (r.fiabilite) p.fiabilite = r.fiabilite;
+    if (r.tendance != null) p.tendance_pct = r.tendance;
     if (Object.keys(p).length) map[k].pieces[bMap[r.piece_bucket] || "T"+r.piece_bucket] = p;
   }
   return { villes: Object.values(map).sort((a, b) => a.nom.localeCompare(b.nom)) };
@@ -739,10 +850,13 @@ function renderCommune(filter) {
   let rows = [...STATS];
   if(filter){ const f=filter.toLowerCase(); rows=rows.filter(d=>d.nom_commune.toLowerCase().includes(f)); }
   if(sortCol) rows.sort((a,b)=>{ let va=a[sortCol],vb=b[sortCol]; if(va==null)return 1;if(vb==null)return -1; return typeof va==="string"?(sortAsc?va.localeCompare(vb):vb.localeCompare(va)):(sortAsc?va-vb:vb-va); });
-  const cols=[{k:"nom_commune",l:"Commune"},{k:"piece_bucket",l:"T"},{k:"ref_m2",l:"Prix/m2",n:1},{k:"mean_w",l:"Moyenne",n:1},{k:"p25",l:"P25",n:1},{k:"p75",l:"P75",n:1},{k:"mad_w",l:"MAD",n:1},{k:"n_mut",l:"Mut.",n:1},{k:"n_eff",l:"N eff.",n:1},{k:"surf_med",l:"Surf.",n:1},{k:"age_med_j",l:"Age",n:1},{k:"Loyer",l:"Loyer",n:1}];
+  const cols=[{k:"nom_commune",l:"Commune"},{k:"piece_bucket",l:"T"},{k:"ref_m2",l:"Prix/m2",n:1},{k:"mean_w",l:"Moyenne",n:1},{k:"p25",l:"P25",n:1},{k:"p75",l:"P75",n:1},{k:"n_mut",l:"Mut.",n:1},{k:"Loyer",l:"Loyer",n:1},{k:"tendance",l:"Tend.",n:1},{k:"fiabilite",l:"Fiab."},{k:"source_level",l:"Source"}];
   const arrow = k => sortCol===k?(sortAsc?" ▲":" ▼"):"";
+  const fiabColor = f => f==="A"?"#00d4aa":f==="B"?"#ffaa00":"#ff6666";
+  const tendFmt = t => t==null?"-":(t>=0?"+":"")+t.toFixed(1)+"%";
+  const tendColor = t => t==null?"#888":t>=0?"#00d4aa":"#ff6666";
   document.querySelector("#communeTable thead").innerHTML = "<tr>" + cols.map(c=>`<th class="${c.n?'num':''}" onclick="doSort('${c.k}')">${c.l}${arrow(c.k)}</th>`).join("")+"</tr>";
-  document.querySelector("#communeTable tbody").innerHTML = rows.map(d=>`<tr><td>${d.nom_commune}</td><td>${d.piece_bucket}p</td><td class="num hl">${fmt(d.ref_m2)}</td><td class="num">${fmt(d.mean_w)}</td><td class="num">${fmt(d.p25)}</td><td class="num">${fmt(d.p75)}</td><td class="num">${fmt(d.mad_w)}</td><td class="num">${d.n_mut||"-"}</td><td class="num">${d.n_eff?d.n_eff.toFixed(1):"-"}</td><td class="num">${d.surf_med?d.surf_med.toFixed(0):"-"}</td><td class="num">${d.age_med_j||"-"}</td><td class="num">${d.Loyer?d.Loyer.toFixed(1):"-"}</td></tr>`).join("");
+  document.querySelector("#communeTable tbody").innerHTML = rows.map(d=>`<tr><td>${d.nom_commune}</td><td>${d.piece_bucket}p</td><td class="num hl">${fmt(d.ref_m2)}</td><td class="num">${fmt(d.mean_w)}</td><td class="num">${fmt(d.p25)}</td><td class="num">${fmt(d.p75)}</td><td class="num">${d.n_mut||"-"}</td><td class="num">${d.Loyer?d.Loyer.toFixed(1):"-"}</td><td class="num" style="color:${tendColor(d.tendance)}">${tendFmt(d.tendance)}</td><td style="color:${fiabColor(d.fiabilite)};font-weight:600">${d.fiabilite||"-"}</td><td style="font-size:.72rem;color:#888">${d.source_level||"-"}</td></tr>`).join("");
 }
 window.doSort = k => { if(sortCol===k)sortAsc=!sortAsc;else{sortCol=k;sortAsc=true;} renderCommune(document.getElementById("communeSearch").value); };
 document.getElementById("communeSearch").addEventListener("input", e => renderCommune(e.target.value));
