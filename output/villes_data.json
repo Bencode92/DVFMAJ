@@ -1,0 +1,836 @@
+{
+    "villes": [
+        {
+            "nom": "ANTONY",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6393.96,
+                    "loyer_m2": 25.91
+                },
+                "T2": {
+                    "prix_m2": 5865.53,
+                    "loyer_m2": 25.91
+                },
+                "T3": {
+                    "prix_m2": 5078.13,
+                    "loyer_m2": 21.37
+                },
+                "T4": {
+                    "prix_m2": 5494.87,
+                    "loyer_m2": 21.37
+                },
+                "T5": {
+                    "prix_m2": 5027.78,
+                    "loyer_m2": 21.37
+                }
+            }
+        },
+        {
+            "nom": "ASNIERES SUR SEINE",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6983.39,
+                    "loyer_m2": 27.46
+                },
+                "T2": {
+                    "prix_m2": 6544.73,
+                    "loyer_m2": 27.46
+                },
+                "T3": {
+                    "prix_m2": 6178.13,
+                    "loyer_m2": 22.89
+                },
+                "T4": {
+                    "prix_m2": 6652.28,
+                    "loyer_m2": 22.89
+                },
+                "T5": {
+                    "prix_m2": 6679.74,
+                    "loyer_m2": 22.89
+                }
+            }
+        },
+        {
+            "nom": "BAGNEUX",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 5946.74,
+                    "loyer_m2": 11.0
+                },
+                "T2": {
+                    "prix_m2": 5645.57,
+                    "loyer_m2": 11.0
+                },
+                "T3": {
+                    "prix_m2": 4884.53,
+                    "loyer_m2": 8.32
+                },
+                "T4": {
+                    "prix_m2": 4848.34,
+                    "loyer_m2": 8.32
+                }
+            }
+        },
+        {
+            "nom": "BOIS COLOMBES",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6595.3,
+                    "loyer_m2": 27.88
+                },
+                "T2": {
+                    "prix_m2": 6179.22,
+                    "loyer_m2": 27.88
+                },
+                "T3": {
+                    "prix_m2": 6508.47,
+                    "loyer_m2": 23.38
+                },
+                "T4": {
+                    "prix_m2": 6587.21,
+                    "loyer_m2": 23.38
+                }
+            }
+        },
+        {
+            "nom": "BOULOGNE BILLANCOURT",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 8046.46,
+                    "loyer_m2": 31.97
+                },
+                "T2": {
+                    "prix_m2": 7830.32,
+                    "loyer_m2": 31.97
+                },
+                "T3": {
+                    "prix_m2": 7538.9,
+                    "loyer_m2": 28.52
+                },
+                "T4": {
+                    "prix_m2": 7773.19,
+                    "loyer_m2": 28.52
+                },
+                "T5": {
+                    "prix_m2": 8262.26,
+                    "loyer_m2": 28.52
+                }
+            }
+        },
+        {
+            "nom": "BOURG LA REINE",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6500.47,
+                    "loyer_m2": 26.5
+                },
+                "T2": {
+                    "prix_m2": 5477.9,
+                    "loyer_m2": 26.5
+                },
+                "T3": {
+                    "prix_m2": 5323.57,
+                    "loyer_m2": 22.79
+                },
+                "T4": {
+                    "prix_m2": 4781.68,
+                    "loyer_m2": 22.79
+                },
+                "T5": {
+                    "prix_m2": 4860.76,
+                    "loyer_m2": 22.79
+                }
+            }
+        },
+        {
+            "nom": "CHATENAY MALABRY",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6202.31,
+                    "loyer_m2": 25.55
+                },
+                "T2": {
+                    "prix_m2": 5558.14,
+                    "loyer_m2": 25.55
+                },
+                "T3": {
+                    "prix_m2": 5087.13,
+                    "loyer_m2": 21.88
+                },
+                "T4": {
+                    "prix_m2": 5064.8,
+                    "loyer_m2": 21.88
+                },
+                "T5": {
+                    "prix_m2": 4961.65,
+                    "loyer_m2": 21.88
+                }
+            }
+        },
+        {
+            "nom": "CHATILLON",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6802.81,
+                    "loyer_m2": 13.48
+                },
+                "T2": {
+                    "prix_m2": 6086.55,
+                    "loyer_m2": 13.48
+                },
+                "T3": {
+                    "prix_m2": 5443.15,
+                    "loyer_m2": 10.28
+                },
+                "T4": {
+                    "prix_m2": 5446.59,
+                    "loyer_m2": 10.28
+                },
+                "T5": {
+                    "prix_m2": 4564.9,
+                    "loyer_m2": 10.28
+                }
+            }
+        },
+        {
+            "nom": "CHAVILLE",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6664.45,
+                    "loyer_m2": 26.29
+                },
+                "T2": {
+                    "prix_m2": 5904.65,
+                    "loyer_m2": 26.29
+                },
+                "T3": {
+                    "prix_m2": 5525.29,
+                    "loyer_m2": 21.92
+                },
+                "T4": {
+                    "prix_m2": 5067.76,
+                    "loyer_m2": 21.92
+                },
+                "T5": {
+                    "prix_m2": 4517.2,
+                    "loyer_m2": 21.92
+                }
+            }
+        },
+        {
+            "nom": "CLAMART",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6287.74,
+                    "loyer_m2": 26.34
+                },
+                "T2": {
+                    "prix_m2": 5741.9,
+                    "loyer_m2": 26.34
+                },
+                "T3": {
+                    "prix_m2": 5449.16,
+                    "loyer_m2": 23.5
+                },
+                "T4": {
+                    "prix_m2": 5714.29,
+                    "loyer_m2": 23.5
+                },
+                "T5": {
+                    "prix_m2": 5319.31,
+                    "loyer_m2": 23.5
+                }
+            }
+        },
+        {
+            "nom": "CLICHY",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6810.53,
+                    "loyer_m2": 28.4
+                },
+                "T2": {
+                    "prix_m2": 6860.69,
+                    "loyer_m2": 28.4
+                },
+                "T3": {
+                    "prix_m2": 7265.63,
+                    "loyer_m2": 25.38
+                },
+                "T4": {
+                    "prix_m2": 6686.44,
+                    "loyer_m2": 25.38
+                },
+                "T5": {
+                    "prix_m2": 6559.27,
+                    "loyer_m2": 25.38
+                }
+            }
+        },
+        {
+            "nom": "COLOMBES",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6283.68,
+                    "loyer_m2": 27.14
+                },
+                "T2": {
+                    "prix_m2": 5648.1,
+                    "loyer_m2": 27.14
+                },
+                "T3": {
+                    "prix_m2": 5177.07,
+                    "loyer_m2": 21.23
+                },
+                "T4": {
+                    "prix_m2": 4939.07,
+                    "loyer_m2": 21.23
+                }
+            }
+        },
+        {
+            "nom": "COURBEVOIE",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 7635.14,
+                    "loyer_m2": 30.55
+                },
+                "T2": {
+                    "prix_m2": 7082.52,
+                    "loyer_m2": 30.55
+                },
+                "T3": {
+                    "prix_m2": 6676.56,
+                    "loyer_m2": 25.88
+                },
+                "T4": {
+                    "prix_m2": 6653.5,
+                    "loyer_m2": 25.88
+                },
+                "T5": {
+                    "prix_m2": 6866.09,
+                    "loyer_m2": 25.88
+                }
+            }
+        },
+        {
+            "nom": "FONTENAY AUX ROSES",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 5566.44,
+                    "loyer_m2": 24.38
+                },
+                "T2": {
+                    "prix_m2": 5134.83,
+                    "loyer_m2": 24.38
+                },
+                "T3": {
+                    "prix_m2": 4465.12,
+                    "loyer_m2": 20.15
+                },
+                "T4": {
+                    "prix_m2": 4530.8,
+                    "loyer_m2": 20.15
+                },
+                "T5": {
+                    "prix_m2": 4008.27,
+                    "loyer_m2": 20.15
+                }
+            }
+        },
+        {
+            "nom": "GARCHES",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6726.98,
+                    "loyer_m2": 26.42
+                },
+                "T2": {
+                    "prix_m2": 5648.1,
+                    "loyer_m2": 26.42
+                },
+                "T3": {
+                    "prix_m2": 5639.12,
+                    "loyer_m2": 22.76
+                },
+                "T4": {
+                    "prix_m2": 5683.32,
+                    "loyer_m2": 22.76
+                },
+                "T5": {
+                    "prix_m2": 5552.66,
+                    "loyer_m2": 22.76
+                }
+            }
+        },
+        {
+            "nom": "GENNEVILLIERS",
+            "departement": "92",
+            "pieces": {
+                "T2": {
+                    "prix_m2": 4965.8,
+                    "loyer_m2": 27.22
+                },
+                "T3": {
+                    "prix_m2": 5128.62,
+                    "loyer_m2": 20.37
+                },
+                "T4": {
+                    "prix_m2": 5033.79,
+                    "loyer_m2": 20.37
+                }
+            }
+        },
+        {
+            "nom": "ISSY LES MOULINEAUX",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 7711.64,
+                    "loyer_m2": 30.09
+                },
+                "T2": {
+                    "prix_m2": 7458.05,
+                    "loyer_m2": 30.09
+                },
+                "T3": {
+                    "prix_m2": 7303.62,
+                    "loyer_m2": 27.25
+                },
+                "T4": {
+                    "prix_m2": 7736.54,
+                    "loyer_m2": 27.25
+                },
+                "T5": {
+                    "prix_m2": 7661.83,
+                    "loyer_m2": 27.25
+                }
+            }
+        },
+        {
+            "nom": "LA GARENNE COLOMBES",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 7281.95,
+                    "loyer_m2": 27.46
+                },
+                "T2": {
+                    "prix_m2": 6714.13,
+                    "loyer_m2": 27.46
+                },
+                "T3": {
+                    "prix_m2": 6468.92,
+                    "loyer_m2": 24.91
+                },
+                "T4": {
+                    "prix_m2": 7201.35,
+                    "loyer_m2": 24.91
+                }
+            }
+        },
+        {
+            "nom": "LE PLESSIS ROBINSON",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6447.53,
+                    "loyer_m2": 27.02
+                },
+                "T2": {
+                    "prix_m2": 6154.76,
+                    "loyer_m2": 27.02
+                },
+                "T3": {
+                    "prix_m2": 5710.96,
+                    "loyer_m2": 21.69
+                },
+                "T4": {
+                    "prix_m2": 5676.65,
+                    "loyer_m2": 21.69
+                },
+                "T5": {
+                    "prix_m2": 5067.49,
+                    "loyer_m2": 21.69
+                }
+            }
+        },
+        {
+            "nom": "LEVALLOIS PERRET",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 8415.65,
+                    "loyer_m2": 32.3
+                },
+                "T2": {
+                    "prix_m2": 8232.7,
+                    "loyer_m2": 32.3
+                },
+                "T3": {
+                    "prix_m2": 8203.44,
+                    "loyer_m2": 30.88
+                },
+                "T4": {
+                    "prix_m2": 8417.46,
+                    "loyer_m2": 30.88
+                },
+                "T5": {
+                    "prix_m2": 8813.58,
+                    "loyer_m2": 30.88
+                }
+            }
+        },
+        {
+            "nom": "MALAKOFF",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 7089.14,
+                    "loyer_m2": 28.19
+                },
+                "T2": {
+                    "prix_m2": 6783.1,
+                    "loyer_m2": 28.19
+                },
+                "T3": {
+                    "prix_m2": 6383.9,
+                    "loyer_m2": 23.31
+                },
+                "T4": {
+                    "prix_m2": 6978.68,
+                    "loyer_m2": 23.31
+                }
+            }
+        },
+        {
+            "nom": "MEUDON",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6036.0,
+                    "loyer_m2": 27.66
+                },
+                "T2": {
+                    "prix_m2": 6493.74,
+                    "loyer_m2": 27.66
+                },
+                "T3": {
+                    "prix_m2": 6118.9,
+                    "loyer_m2": 22.54
+                },
+                "T4": {
+                    "prix_m2": 6115.26,
+                    "loyer_m2": 22.54
+                },
+                "T5": {
+                    "prix_m2": 6464.27,
+                    "loyer_m2": 22.54
+                }
+            }
+        },
+        {
+            "nom": "MONTROUGE",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 7589.33,
+                    "loyer_m2": 28.49
+                },
+                "T2": {
+                    "prix_m2": 7104.12,
+                    "loyer_m2": 28.49
+                },
+                "T3": {
+                    "prix_m2": 6914.25,
+                    "loyer_m2": 25.9
+                },
+                "T4": {
+                    "prix_m2": 6845.24,
+                    "loyer_m2": 25.9
+                },
+                "T5": {
+                    "prix_m2": 7350.32,
+                    "loyer_m2": 25.9
+                }
+            }
+        },
+        {
+            "nom": "NANTERRE",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6157.33,
+                    "loyer_m2": 26.34
+                },
+                "T2": {
+                    "prix_m2": 5741.35,
+                    "loyer_m2": 26.34
+                },
+                "T3": {
+                    "prix_m2": 5033.4,
+                    "loyer_m2": 23.06
+                },
+                "T4": {
+                    "prix_m2": 4908.21,
+                    "loyer_m2": 23.06
+                }
+            }
+        },
+        {
+            "nom": "NEUILLY SUR SEINE",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 8650.65,
+                    "loyer_m2": 36.6
+                },
+                "T2": {
+                    "prix_m2": 8095.14,
+                    "loyer_m2": 36.6
+                },
+                "T3": {
+                    "prix_m2": 8113.94,
+                    "loyer_m2": 33.62
+                },
+                "T4": {
+                    "prix_m2": 8511.9,
+                    "loyer_m2": 33.62
+                },
+                "T5": {
+                    "prix_m2": 10168.82,
+                    "loyer_m2": 33.62
+                }
+            }
+        },
+        {
+            "nom": "PUTEAUX",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 7798.06,
+                    "loyer_m2": 29.53
+                },
+                "T2": {
+                    "prix_m2": 7160.86,
+                    "loyer_m2": 29.53
+                },
+                "T3": {
+                    "prix_m2": 6727.51,
+                    "loyer_m2": 27.11
+                },
+                "T4": {
+                    "prix_m2": 7378.9,
+                    "loyer_m2": 27.11
+                },
+                "T5": {
+                    "prix_m2": 6859.47,
+                    "loyer_m2": 27.11
+                }
+            }
+        },
+        {
+            "nom": "RUEIL MALMAISON",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6427.47,
+                    "loyer_m2": 27.36
+                },
+                "T2": {
+                    "prix_m2": 5907.84,
+                    "loyer_m2": 27.36
+                },
+                "T3": {
+                    "prix_m2": 5520.6,
+                    "loyer_m2": 23.48
+                },
+                "T4": {
+                    "prix_m2": 5558.51,
+                    "loyer_m2": 23.48
+                },
+                "T5": {
+                    "prix_m2": 6092.03,
+                    "loyer_m2": 23.48
+                }
+            }
+        },
+        {
+            "nom": "SAINT CLOUD",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 7200.0,
+                    "loyer_m2": 28.98
+                },
+                "T2": {
+                    "prix_m2": 6802.12,
+                    "loyer_m2": 28.98
+                },
+                "T3": {
+                    "prix_m2": 6186.88,
+                    "loyer_m2": 25.6
+                },
+                "T4": {
+                    "prix_m2": 6399.81,
+                    "loyer_m2": 25.6
+                },
+                "T5": {
+                    "prix_m2": 7194.86,
+                    "loyer_m2": 25.6
+                }
+            }
+        },
+        {
+            "nom": "SCEAUX",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6476.68,
+                    "loyer_m2": 27.47
+                },
+                "T2": {
+                    "prix_m2": 6492.93,
+                    "loyer_m2": 27.47
+                },
+                "T3": {
+                    "prix_m2": 5564.44,
+                    "loyer_m2": 23.89
+                },
+                "T4": {
+                    "prix_m2": 5654.76,
+                    "loyer_m2": 23.89
+                },
+                "T5": {
+                    "prix_m2": 6260.95,
+                    "loyer_m2": 23.89
+                }
+            }
+        },
+        {
+            "nom": "SEVRES",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6057.49,
+                    "loyer_m2": 26.51
+                },
+                "T2": {
+                    "prix_m2": 6209.3,
+                    "loyer_m2": 26.51
+                },
+                "T3": {
+                    "prix_m2": 5401.34,
+                    "loyer_m2": 25.05
+                },
+                "T4": {
+                    "prix_m2": 5490.9,
+                    "loyer_m2": 25.05
+                },
+                "T5": {
+                    "prix_m2": 6119.99,
+                    "loyer_m2": 25.05
+                }
+            }
+        },
+        {
+            "nom": "SURESNES",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 7551.27,
+                    "loyer_m2": 29.16
+                },
+                "T2": {
+                    "prix_m2": 6815.0,
+                    "loyer_m2": 29.16
+                },
+                "T3": {
+                    "prix_m2": 6778.6,
+                    "loyer_m2": 25.69
+                },
+                "T4": {
+                    "prix_m2": 7452.91,
+                    "loyer_m2": 25.69
+                },
+                "T5": {
+                    "prix_m2": 7206.98,
+                    "loyer_m2": 25.69
+                }
+            }
+        },
+        {
+            "nom": "VANVES",
+            "departement": "92",
+            "pieces": {
+                "T1": {
+                    "prix_m2": 6916.03,
+                    "loyer_m2": 28.24
+                },
+                "T2": {
+                    "prix_m2": 6618.36,
+                    "loyer_m2": 28.24
+                },
+                "T3": {
+                    "prix_m2": 5931.88,
+                    "loyer_m2": 26.38
+                },
+                "T4": {
+                    "prix_m2": 5870.96,
+                    "loyer_m2": 26.38
+                },
+                "T5": {
+                    "prix_m2": 5870.99,
+                    "loyer_m2": 26.38
+                }
+            }
+        },
+        {
+            "nom": "VAUCRESSON",
+            "departement": "92",
+            "pieces": {
+                "T2": {
+                    "prix_m2": 5583.18,
+                    "loyer_m2": 25.53
+                },
+                "T3": {
+                    "prix_m2": 5247.62,
+                    "loyer_m2": 22.05
+                },
+                "T4": {
+                    "prix_m2": 4940.72,
+                    "loyer_m2": 22.05
+                }
+            }
+        },
+        {
+            "nom": "VILLE D AVRAY",
+            "departement": "92",
+            "pieces": {
+                "T3": {
+                    "prix_m2": 5414.6,
+                    "loyer_m2": 20.62
+                },
+                "T4": {
+                    "prix_m2": 5956.13,
+                    "loyer_m2": 20.62
+                }
+            }
+        }
+    ]
+}

@@ -213,18 +213,56 @@ def run_analytics():
     return out
 
 
+def build_villes_json(df):
+    """Construit le JSON au format villes_data pour l'app."""
+    bucket_map = {"1": "T1", "2": "T2", "3": "T3", "4": "T4", "5": "T5"}
+    villes = {}
+
+    for row in df.iter_rows(named=True):
+        nom = normalize_text(row["nom_commune"]) or row["nom_commune"]
+        dept = row["code_departement"]
+        bucket = row["piece_bucket"]
+        prix = row.get("ref_m2") or row.get("ref_raw")
+        loyer = row.get("Loyer")
+
+        key = (nom, dept)
+        if key not in villes:
+            villes[key] = {"nom": nom, "departement": dept, "pieces": {}}
+
+        t_key = bucket_map.get(bucket, f"T{bucket}")
+        piece = {}
+        if prix is not None:
+            piece["prix_m2"] = round(prix, 2)
+        if loyer is not None:
+            piece["loyer_m2"] = round(loyer, 2)
+        if piece:
+            villes[key]["pieces"][t_key] = piece
+
+    # Tri par nom
+    result = sorted(villes.values(), key=lambda v: v["nom"])
+    return {"villes": result}
+
+
 def export(df, output_dir=OUTPUT_DIR):
-    """Exporte en CSV + Excel."""
+    """Exporte en CSV + Excel + JSON villes_data."""
+    import json
     output_dir.mkdir(parents=True, exist_ok=True)
+
     csv_path = output_dir / "resultats.csv"
     xlsx_path = output_dir / "resultats.xlsx"
+    json_path = output_dir / "villes_data.json"
 
     df.write_csv(csv_path)
     df.to_pandas().to_excel(xlsx_path, index=False, sheet_name="Références")
 
+    villes = build_villes_json(df)
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(villes, f, ensure_ascii=False, indent=4)
+
     print(f"\nExport:")
     print(f"  CSV:   {csv_path}")
     print(f"  Excel: {xlsx_path}")
+    print(f"  JSON:  {json_path} ({len(villes['villes'])} villes)")
 
 
 if __name__ == "__main__":
