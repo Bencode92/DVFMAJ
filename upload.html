@@ -9,10 +9,9 @@
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e1a; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
     h1 { text-align: center; margin-bottom: .5rem; color: #00d4aa; }
     .subtitle { text-align: center; color: #888; margin-bottom: 2rem; font-size: .9rem; }
-
-    .config { max-width: 600px; margin: 0 auto 1.5rem; display: flex; gap: .5rem; align-items: center; }
-    .config label { color: #aaa; font-size: .85rem; white-space: nowrap; }
-    .config input { flex: 1; background: #161b2e; border: 1px solid #2a3050; color: #e0e0e0; padding: .5rem .75rem; border-radius: 6px; font-size: .85rem; }
+    nav { text-align: center; margin-bottom: 2rem; }
+    nav a { color: #00d4aa; text-decoration: none; margin: 0 1rem; font-size: .9rem; }
+    nav a:hover { text-decoration: underline; }
 
     .drop-zone {
       max-width: 600px; margin: 0 auto 1.5rem; border: 2px dashed #2a3050; border-radius: 12px;
@@ -21,6 +20,11 @@
     .drop-zone:hover, .drop-zone.dragover { border-color: #00d4aa; background: rgba(0,212,170,.05); }
     .drop-zone p { color: #888; margin-bottom: .5rem; }
     .drop-zone .hint { font-size: .8rem; color: #555; }
+    .drop-zone .accepted { font-size: .75rem; color: #00d4aa; margin-top: .5rem; }
+
+    .alert { max-width: 600px; margin: 0 auto 1rem; padding: .75rem 1rem; border-radius: 8px; font-size: .85rem; display: none; }
+    .alert.error { background: rgba(255,68,68,.1); border: 1px solid #ff4444; color: #ff6666; display: block; }
+    .alert.warn { background: rgba(255,170,0,.1); border: 1px solid #ffaa00; color: #ffcc44; display: block; }
 
     .file-list { max-width: 600px; margin: 0 auto 1.5rem; }
     .file-item {
@@ -30,6 +34,9 @@
     }
     .file-item .name { flex: 1; }
     .file-item .size { color: #888; margin: 0 1rem; }
+    .file-item .tag { font-size: .7rem; padding: .15rem .4rem; border-radius: 4px; margin-right: .5rem; }
+    .file-item .tag.new { background: #00d4aa22; color: #00d4aa; }
+    .file-item .tag.update { background: #ffaa0022; color: #ffaa00; }
     .file-item .status { width: 80px; text-align: right; }
     .file-item .status.ok { color: #00d4aa; }
     .file-item .status.err { color: #ff4444; }
@@ -57,16 +64,15 @@
 </head>
 <body>
   <h1>DVF Upload</h1>
-  <p class="subtitle">Glisser les CSV (Capital_XX.csv, loyer_*.csv) pour les pousser sur GitHub</p>
+  <p class="subtitle">Glisser les CSV pour les pousser sur GitHub</p>
+  <nav><a href="dashboard.html">Dashboard</a></nav>
 
-  <div class="config">
-    <label>Worker URL:</label>
-    <input id="workerUrl" type="text" placeholder="https://your-worker.workers.dev" />
-  </div>
+  <div class="alert" id="alert"></div>
 
   <div class="drop-zone" id="dropZone">
-    <p>Glisser-déposer vos fichiers CSV ici</p>
-    <p class="hint">ou cliquer pour sélectionner</p>
+    <p>Glisser-deposer vos fichiers CSV ici</p>
+    <p class="hint">ou cliquer pour selectionner</p>
+    <p class="accepted">Formats acceptes : Capital_XX.csv, loyer_1ou2p.csv, loyer_3p.csv</p>
     <input type="file" id="fileInput" multiple accept=".csv" style="display:none" />
   </div>
 
@@ -80,25 +86,32 @@
   <div class="log" id="log" style="display:none"></div>
 
   <script>
+    // ===== CONFIGURATION =====
+    // TODO: remplacer par ton URL Worker Cloudflare
+    const WORKER_URL = "https://studyforge-proxy.benoit-comas.workers.dev";
     const REPO = "Bencode92/DVFMAJ";
     const BRANCH = "main";
     const DATA_PATH = "data";
 
-    let files = new Map(); // name -> { file, status }
+    // Patterns de fichiers acceptes
+    const VALID_PATTERNS = [
+      /^Capital_\d{2,3}[A-B]?\.csv$/i,   // Capital_92.csv, Capital_2A.csv, Capital_75.csv
+      /^loyer_1ou2p\.csv$/i,              // loyer_1ou2p.csv
+      /^loyer_3p\.csv$/i,                 // loyer_3p.csv
+    ];
 
+    function isValidFileName(name) {
+      return VALID_PATTERNS.some(p => p.test(name));
+    }
+
+    let files = new Map(); // name -> { file, status, isUpdate }
     const dropZone = document.getElementById("dropZone");
     const fileInput = document.getElementById("fileInput");
     const fileList = document.getElementById("fileList");
     const btnPush = document.getElementById("btnPush");
     const btnClear = document.getElementById("btnClear");
     const logEl = document.getElementById("log");
-    const workerUrlInput = document.getElementById("workerUrl");
-
-    // Restore saved worker URL
-    workerUrlInput.value = localStorage.getItem("dvf_worker_url") || "";
-    workerUrlInput.addEventListener("input", () => {
-      localStorage.setItem("dvf_worker_url", workerUrlInput.value.trim());
-    });
+    const alertEl = document.getElementById("alert");
 
     // Drop zone events
     dropZone.addEventListener("click", () => fileInput.click());
@@ -111,10 +124,31 @@
     });
     fileInput.addEventListener("change", () => { addFiles(fileInput.files); fileInput.value = ""; });
 
+    function showAlert(msg, type) {
+      alertEl.className = "alert " + type;
+      alertEl.textContent = msg;
+      setTimeout(() => { alertEl.className = "alert"; }, 5000);
+    }
+
     function addFiles(fileListInput) {
+      let rejected = [];
       for (const f of fileListInput) {
-        if (!f.name.endsWith(".csv")) { log(`Ignoré (pas CSV): ${f.name}`, "err"); continue; }
-        files.set(f.name, { file: f, status: "wait" });
+        if (!f.name.endsWith(".csv")) {
+          rejected.push(f.name + " (pas un CSV)");
+          continue;
+        }
+        if (!isValidFileName(f.name)) {
+          rejected.push(f.name);
+          continue;
+        }
+        // Si doublon dans la selection, on remplace
+        files.set(f.name, { file: f, status: "wait", isUpdate: false });
+      }
+      if (rejected.length > 0) {
+        showAlert(
+          "Fichiers refuses (format attendu: Capital_XX.csv ou loyer_*.csv) : " + rejected.join(", "),
+          "error"
+        );
       }
       renderFiles();
     }
@@ -124,9 +158,12 @@
       for (const [name, data] of files) {
         const sizeMB = (data.file.size / 1024 / 1024).toFixed(1);
         const statusLabel = { wait: "En attente", uploading: "Upload...", ok: "OK", err: "Erreur" }[data.status];
+        const tag = data.isUpdate
+          ? '<span class="tag update">MAJ</span>'
+          : '<span class="tag new">Nouveau</span>';
         fileList.innerHTML += `
           <div class="file-item">
-            <span class="name">${name}</span>
+            <span class="name">${tag}${name}</span>
             <span class="size">${sizeMB} Mo</span>
             <span class="status ${data.status}">${statusLabel}</span>
             <span class="remove" onclick="removeFile('${name}')">&times;</span>
@@ -137,18 +174,33 @@
     }
 
     window.removeFile = (name) => { files.delete(name); renderFiles(); };
+    btnClear.addEventListener("click", () => { files.clear(); alertEl.className = "alert"; renderFiles(); });
 
-    btnClear.addEventListener("click", () => { files.clear(); renderFiles(); });
+    // ===== Pre-check: fichier existe deja sur GitHub ? =====
+    async function checkExisting() {
+      for (const [name, data] of files) {
+        if (data.status !== "wait") continue;
+        try {
+          const checkUrl = `${WORKER_URL}/github/${REPO}/contents/${DATA_PATH}/${name}?ref=${BRANCH}`;
+          const resp = await fetch(checkUrl);
+          if (resp.ok) {
+            const json = await resp.json();
+            data.sha = json.sha;
+            data.isUpdate = true;
+          }
+        } catch (e) { /* new file */ }
+      }
+      renderFiles();
+    }
 
-    // ===== Push to GitHub via Worker =====
+    // ===== Push to GitHub =====
     btnPush.addEventListener("click", async () => {
-      const workerUrl = workerUrlInput.value.trim().replace(/\/$/, "");
-      if (!workerUrl) { alert("Entrer l'URL du Worker"); return; }
-
       btnPush.disabled = true;
       logEl.style.display = "block";
       logEl.innerHTML = "";
-      log("Début du push...", "info");
+      log("Verification des fichiers existants...", "info");
+
+      await checkExisting();
 
       let success = 0, errors = 0;
 
@@ -159,35 +211,18 @@
         renderFiles();
 
         try {
-          const ghPath = `${DATA_PATH}/${name}`;
-          log(`${name}: lecture...`, "info");
-
-          // 1) Check if file exists (get SHA)
-          let sha = null;
-          try {
-            const checkUrl = `${workerUrl}/github/${REPO}/contents/${ghPath}?ref=${BRANCH}`;
-            const checkResp = await fetch(checkUrl);
-            if (checkResp.ok) {
-              const checkData = await checkResp.json();
-              sha = checkData.sha;
-              log(`${name}: fichier existant (sha: ${sha.substring(0, 7)}), mise à jour...`, "info");
-            } else {
-              log(`${name}: nouveau fichier`, "info");
-            }
-          } catch (e) { /* file doesn't exist yet */ }
-
-          // 2) Read file as base64
+          log(`${name}: lecture + encodage base64...`, "info");
           const content = await readFileAsBase64(data.file);
 
-          // 3) PUT to GitHub
-          const putUrl = `${workerUrl}/github/${REPO}/contents/${ghPath}`;
+          const putUrl = `${WORKER_URL}/github/${REPO}/contents/${DATA_PATH}/${name}`;
           const body = {
-            message: `data: update ${name}`,
+            message: data.isUpdate ? `data: update ${name}` : `data: add ${name}`,
             content: content,
             branch: BRANCH,
           };
-          if (sha) body.sha = sha;
+          if (data.sha) body.sha = data.sha;
 
+          log(`${name}: push vers GitHub${data.isUpdate ? " (remplacement)" : ""}...`, "info");
           const putResp = await fetch(putUrl, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -205,30 +240,26 @@
         } catch (e) {
           data.status = "err";
           errors++;
-          log(`${name}: ERREUR — ${e.message}`, "err");
+          log(`${name}: ERREUR - ${e.message}`, "err");
         }
         renderFiles();
       }
 
-      log(`Terminé: ${success} OK, ${errors} erreurs`, success > 0 && errors === 0 ? "ok" : "err");
+      log(`Termine: ${success} OK, ${errors} erreurs`, success > 0 && errors === 0 ? "ok" : "err");
       btnPush.disabled = false;
     });
 
     function readFileAsBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => {
-          // result is "data:...;base64,XXXX", we want just XXXX
-          const base64 = reader.result.split(",")[1];
-          resolve(base64);
-        };
+        reader.onload = () => resolve(reader.result.split(",")[1]);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
     }
 
-    function log(msg, cls = "info") {
-      logEl.innerHTML += `<div class="line ${cls}">${new Date().toLocaleTimeString()} — ${msg}</div>`;
+    function log(msg, cls) {
+      logEl.innerHTML += `<div class="line ${cls}">${new Date().toLocaleTimeString()} - ${msg}</div>`;
       logEl.scrollTop = logEl.scrollHeight;
     }
   </script>
