@@ -219,13 +219,16 @@ const BRANCH = "main";
 const RAW = "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH;
 
 const AS_OF = new Date(2025, 9, 31); // Oct 31, 2025
-const HALF_LIFE_DAYS = 30.4375 * 12;
+const HALF_LIFE_DAYS = 30.4375 * 9;  // v3: 9 mois (capture cycles taux)
 const Q_LOW = 0.10;
 const Q_HIGH = 0.90;
 const MIN_N = 20;
-const MIN_N_FALLBACK = 5; // seuil min pour fallback dept
-const MAD_THRESHOLD = 3.5; // seuils MAD pour outliers
-const TREND_DAYS = 180; // fenetre "recent" pour tendance
+const MIN_N_FALLBACK = 5;
+const MAD_THRESHOLD = 3.5;
+const LAMBDA_SHRINK = 60;            // v3: compromis prudent (était 75)
+const FORFAIT_DEP = 15000;           // v3: décote par dépendance (parking/cave)
+const MAX_DEDUCTION = 30000;         // v3: cap déduction dépendances
+const TREND_T_THRESHOLD = 1.96;      // v3: bilatéral (était 1.65 unilatéral)
 
 const VALID_PAT = [/^Capital_\d{2,3}[A-B]?\.csv$/i, /^loyer_1ou2p\.csv$/i, /^loyer_3p\.csv$/i];
 
@@ -467,45 +470,70 @@ function parseLoyerCSV(text) {
   const h = lines[0].split(",");
   const iLib = h.indexOf("LIBGEO");
   const iLoy = h.indexOf("loypredm2");
-  if (iLib < 0 || iLoy < 0) return [];
+  const iInsee = h.indexOf("INSEE_C");
+  if (iLoy < 0) return [];
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
     const v = lines[i].split(",");
     const lib = (v[iLib] || "").replace(/"/g, "");
     const loy = parseFloat(v[iLoy]);
-    if (lib && !isNaN(loy)) rows.push({ lib, loy });
+    const insee = (v[iInsee] || "").replace(/"/g, "").trim();
+    if (!isNaN(loy) && loy > 0) rows.push({ lib, loy, insee });
   }
   return rows;
 }
 
 // ===================================================================
-// TRANSFORM PIPELINE — v2 ameliore
+// TRANSFORM PIPELINE — v3
+// Décote dépendances, beta interpolé, MAD trimming
 // ===================================================================
 function transformPipeline(rawRows) {
   const asOf = AS_OF.getTime();
 
-  // 1) Filtre : Vente uniquement (exclut VEFA), Appartement, surf >= 9
+  // 1) Filtre large : Vente uniquement (exclut VEFA), date valide
+  //    On garde TOUTES les lignes (Appartement + Dépendance) pour détecter les deps
   const filtered = rawRows.filter(r =>
-    r.nature === "Vente" && r.type === "Appartement" &&
-    r.surf >= 9 && r.date !== "" && new Date(r.date).getTime() <= asOf
+    r.nature === "Vente" && r.date !== "" && new Date(r.date).getTime() <= asOf
   );
 
-  // 2) Agregation par id_mutation
+  // 2) Agrégation par id_mutation avec comptage dépendances
   const groups = new Map();
   for (const r of filtered) {
     let g = groups.get(r.id);
-    if (!g) { g = { n:0, vf:0, surf:0, date:r.date, commune:r.commune, dept:r.dept, codeC:r.codeC, pieces:r.pieces }; groups.set(r.id, g); }
-    g.n++; g.vf += r.vf; g.surf += r.surf;
+    if (!g) {
+      g = { nAppart:0, nDep:0, vf:r.vf, surf:0, date:r.date,
+            commune:r.commune, dept:r.dept, codeC:r.codeC, pieces:0 };
+      groups.set(r.id, g);
+    }
+    if (r.type === "Appartement") {
+      g.nAppart++;
+      g.surf += r.surf;
+      if (r.pieces > g.pieces) g.pieces = r.pieces;
+      if (r.commune) g.commune = r.commune;
+      if (r.dept) g.dept = r.dept;
+      if (r.codeC) g.codeC = r.codeC;
+    } else if (r.type.indexOf("pendance") >= 0) {
+      g.nDep++;
+    }
+    // valeur_fonciere est identique sur toutes les lignes d'une mutation
+    if (r.vf > 0) g.vf = r.vf;
     if (r.date > g.date) g.date = r.date;
-    if (r.pieces > g.pieces) g.pieces = r.pieces;
   }
 
-  // 3) Single appart, pieces 1-5, prix_m2 > 0
+  // 3) Filtre : 1 seul appartement, pièces 1-5, surface >= 9
+  //    + décote dépendances (parking ~15K, cave ~5K → forfait moyen 15K/dep)
   const muts = [];
   for (const [, g] of groups) {
-    if (g.n !== 1 || g.pieces < 1 || g.pieces > 5 || g.surf <= 0) continue;
-    const pm2 = g.vf / g.surf;
+    if (g.nAppart !== 1 || g.pieces < 1 || g.pieces > 5 || g.surf < 9) continue;
+
+    // Décote dépendances
+    const deduction = Math.min(g.nDep * FORFAIT_DEP, MAX_DEDUCTION);
+    const vfAdj = g.vf - deduction;
+    if (vfAdj <= 0) continue;
+
+    const pm2 = vfAdj / g.surf;
     if (pm2 <= 0) continue;
+
     const dt = new Date(g.date);
     const ageDays = Math.round((AS_OF - dt) / 86400000);
     const tw = ageDays < 0 ? 1.0 : Math.pow(0.5, ageDays / HALF_LIFE_DAYS);
@@ -513,6 +541,7 @@ function transformPipeline(rawRows) {
       dept: g.dept, codeC: g.codeC, commune: g.commune,
       bucket: String(Math.min(g.pieces, 5)),
       pm2, surf: g.surf, ageDays, tw, w: tw > 0 ? tw : 1.0,
+      nDep: g.nDep,
     });
   }
 
@@ -526,16 +555,16 @@ function transformPipeline(rawRows) {
     return r.surf >= q[0] && r.surf <= q[2];
   });
 
-  // 5) Beta surface LOCAL par zone de prix du departement
-  //    Calcul du prix median par dept pour classer en zones
+  // 5) Beta surface INTERPOLÉ par médiane dept
+  //    Réduit car on segmente déjà par pièces : [-0.20, -0.03]
   const deptMedians = computeGroupQuantiles(afterSurf, r => r.dept, r => r.pm2, r => r.w, [0.5]);
   function getBeta(dept) {
     const med = deptMedians.get(dept);
     const m = med ? med[0] : null;
-    if (m == null) return -0.20;
-    if (m >= 8000) return -0.10; // zones cheres (Paris, Hauts-de-Seine premium)
-    if (m >= 5000) return -0.18; // zones intermediaires
-    return -0.28;                 // zones accessibles
+    if (m == null) return -0.12;
+    // Interpolation linéaire : 2000€ → -0.20, 10000€ → -0.03
+    const t = Math.max(0, Math.min(1, (m - 2000) / 8000));
+    return -0.20 + t * 0.17; // -0.20 à -0.03
   }
 
   const adjusted = afterSurf.map(r => {
@@ -548,8 +577,7 @@ function transformPipeline(rawRows) {
     return { ...r, pm2Adj };
   }).filter(r => r.pm2Adj > 0);
 
-  // 6) Trimming prix par MAD au lieu de p10-p90 fixe
-  //    |prix - mediane| < MAD_THRESHOLD * MAD par (dept, bucket)
+  // 6) Trimming prix par MAD adaptatif par (dept, bucket)
   const groupedAdj = new Map();
   for (const r of adjusted) {
     const k = gk(r);
@@ -564,21 +592,16 @@ function transformPipeline(rawRows) {
     const tot = sw.reduce((s,w)=>s+w, 0);
     if (tot <= 0) { kept.push(...grp); continue; }
 
-    // Mediane
-    let cum=0; let med=sv[sv.length-1];
-    const tgt = 0.5*tot;
-    for (let i=0; i<sv.length; i++) { cum+=sw[i]; if(cum>=tgt){med=sv[i];break;} }
+    let cum=0, med=sv[sv.length-1];
+    for (let i=0; i<sv.length; i++) { cum+=sw[i]; if(cum>=0.5*tot){med=sv[i];break;} }
 
-    // MAD
     const devs = sv.map((v,i) => [Math.abs(v-med), sw[i]]).sort((a,b)=>a[0]-b[0]);
-    const dv=devs.map(d=>d[0]), dw=devs.map(d=>d[1]);
-    const dtot = dw.reduce((s,w)=>s+w,0);
-    let dcum=0, rawMad=dv[dv.length-1];
-    for (let i=0;i<dv.length;i++){dcum+=dw[i];if(dcum>=0.5*dtot){rawMad=dv[i];break;}}
+    let dcum=0, rawMad=devs[devs.length-1][0];
+    const dtot = devs.reduce((s,d)=>s+d[1],0);
+    for (let i=0;i<devs.length;i++){dcum+=devs[i][1];if(dcum>=0.5*dtot){rawMad=devs[i][0];break;}}
     const mad = 1.4826 * rawMad;
-
-    // Filtre : garder si |prix - med| < threshold * MAD
     const limit = mad > 0 ? MAD_THRESHOLD * mad : Infinity;
+
     for (const r of grp) {
       if (Math.abs(r.pm2Adj - med) <= limit) kept.push(r);
     }
@@ -632,16 +655,71 @@ function weightedMedian(vals, ws) {
 }
 
 // ===================================================================
-// ANALYTICS PIPELINE — v2 : fallback dept + tendance + fiabilite
+// ANALYTICS PIPELINE — v3
+// Jointure INSEE, lambda=60, régression tendance, fiabilité enrichie
 // ===================================================================
 function analyticsPipeline(vente, loyer12, loyer3p) {
-  // Loyer lookup
-  const loyerMap = new Map();
-  for (const r of loyer12) { const k = norm(r.lib); loyerMap.set(k, { l12: r.loy, l3p: null }); }
-  for (const r of loyer3p) { const k = norm(r.lib); const e = loyerMap.get(k) || { l12: null }; e.l3p = r.loy; loyerMap.set(k, e); }
+  // v3: Loyer lookup par code INSEE (fiable) + fallback nom normalisé
+  const loyerByInsee = new Map();
+  const loyerByName = new Map();
+  for (const r of loyer12) {
+    if (r.insee) { const e = loyerByInsee.get(r.insee) || {}; e.l12 = r.loy; loyerByInsee.set(r.insee, e); }
+    const k = norm(r.lib); const e2 = loyerByName.get(k) || {}; e2.l12 = r.loy; loyerByName.set(k, e2);
+  }
+  for (const r of loyer3p) {
+    if (r.insee) { const e = loyerByInsee.get(r.insee) || {}; e.l3p = r.loy; loyerByInsee.set(r.insee, e); }
+    const k = norm(r.lib); const e2 = loyerByName.get(k) || {}; e2.l3p = r.loy; loyerByName.set(k, e2);
+  }
+
+  function getLoyer(codeC, commune, bucket) {
+    // v3: INSEE d'abord, fallback nom
+    const loyer = loyerByInsee.get(codeC) || loyerByName.get(norm(commune));
+    if (!loyer) return null;
+    return (bucket === "1" || bucket === "2") ? (loyer.l12 || null) : (loyer.l3p || null);
+  }
 
   // Quantile helper
   const qFn = (sv, sw, t, q) => { let c=0; const tgt=q*t; for(let i=0;i<sv.length;i++){c+=sw[i];if(c>=tgt)return sv[i];} return null; };
+
+  // v3: Tendance par régression pondérée ln(prix) ~ temps
+  function computeTrend(rows) {
+    if (rows.length < 15) return null;
+    // Régression pondérée : y = ln(pm2), x = ageDays (inversé: plus récent = x plus grand)
+    const maxAge = Math.max(...rows.map(r => r.ageDays));
+    let sw=0, sx=0, sy=0, sxx=0, sxy=0;
+    for (const r of rows) {
+      const x = maxAge - r.ageDays; // x croissant dans le temps
+      const y = Math.log(r.pm2);
+      const w = r.w;
+      sw += w; sx += w*x; sy += w*y; sxx += w*x*x; sxy += w*x*y;
+    }
+    if (sw <= 0) return null;
+    const xbar = sx/sw, ybar = sy/sw;
+    const denom = sxx - sx*sx/sw;
+    if (Math.abs(denom) < 1e-10) return null;
+    const b = (sxy - sx*sy/sw) / denom;
+    const a = ybar - b*xbar;
+
+    // Résidus pour erreur standard
+    let ssRes = 0;
+    for (const r of rows) {
+      const x = maxAge - r.ageDays;
+      const resid = Math.log(r.pm2) - (a + b*x);
+      ssRes += r.w * resid * resid;
+    }
+    const n = rows.length;
+    if (n <= 2) return null;
+    const seB = Math.sqrt(ssRes / ((n-2) * denom));
+    if (seB <= 0) return null;
+    const tStat = b / seB;
+
+    // v3: test bilatéral |t| >= 1.96
+    if (Math.abs(tStat) < TREND_T_THRESHOLD) return null;
+
+    // Tendance annualisée en %
+    const trendAnnual = (Math.exp(b * 365) - 1) * 100;
+    return Math.round(trendAnnual * 100) / 100;
+  }
 
   // Compute stats pour un groupe de rows
   function computeStats(rows, dept, codeC, commune, bucket, sourceLevel) {
@@ -677,30 +755,20 @@ function analyticsPipeline(vente, loyer12, loyer3p) {
     const surfMed = weightedMedian(sr.map(r=>r.surf), sr.map(r=>r.w));
     const ageMed = weightedMedian(ar.map(r=>r.ageDays), ar.map(r=>r.w));
 
-    // Tendance : mediane des < 6 mois vs mediane des >= 6 mois
-    const recent = rows.filter(r => r.ageDays <= TREND_DAYS);
-    const older = rows.filter(r => r.ageDays > TREND_DAYS);
-    let tendance = null;
-    if (recent.length >= 5 && older.length >= 5) {
-      const medRecent = weightedMedian(recent.map(r=>r.pm2), recent.map(r=>r.w));
-      const medOlder = weightedMedian(older.map(r=>r.pm2), older.map(r=>r.w));
-      if (medRecent && medOlder && medOlder > 0) {
-        tendance = Math.round((medRecent / medOlder - 1) * 10000) / 100; // en %
-      }
-    }
+    // v3: Tendance par régression pondérée
+    const tendance = computeTrend(rows);
 
-    // Fiabilite : A (excellent), B (bon), C (faible)
+    // v3: Fiabilité enrichie avec fraîcheur
     const cv = (madW && med) ? madW / med : 1;
     let fiabilite;
-    if (nEff >= 30 && cv < 0.25) fiabilite = "A";
-    else if (nEff >= 15 && cv < 0.40) fiabilite = "B";
+    if (nEff >= 30 && cv < 0.25 && ageMed != null && ageMed <= 365) fiabilite = "A";
+    else if (nEff >= 15 && cv < 0.40 && (ageMed == null || ageMed <= 540)) fiabilite = "B";
     else fiabilite = "C";
+    // Forcer C si données trop anciennes
+    if (ageMed != null && ageMed > 540) fiabilite = "C";
 
-    // Loyer
-    const lk = norm(commune);
-    const loyer = loyerMap.get(lk);
-    let loyerVal = null;
-    if (loyer) loyerVal = (bucket==="1"||bucket==="2") ? loyer.l12 : loyer.l3p;
+    // v3: Loyer par code INSEE
+    const loyerVal = getLoyer(codeC, commune, bucket);
 
     return {
       code_departement: dept, code_commune: codeC, nom_commune: commune, piece_bucket: bucket,
@@ -719,7 +787,7 @@ function analyticsPipeline(vente, loyer12, loyer3p) {
     communeGroups.get(k).push(r);
   }
 
-  // --- Grouper par departement (pour fallback) ---
+  // --- Grouper par département (pour fallback) ---
   const deptGroups = new Map();
   for (const r of vente) {
     const k = r.dept+"|"+r.bucket;
@@ -728,50 +796,42 @@ function analyticsPipeline(vente, loyer12, loyer3p) {
   }
 
   const stats = [];
-  const communesDone = new Set(); // track commune|bucket deja traitees
+  const done = new Set();
 
-  // Pass 1 : communes avec assez de data (n >= MIN_N)
+  // Pass 1 : communes avec n >= MIN_N
   for (const [k, rows] of communeGroups) {
     if (rows.length < MIN_N) continue;
     const [dept, codeC, commune, bucket] = k.split("|");
     const s = computeStats(rows, dept, codeC, commune, bucket, "commune");
-    if (s && s.ref_m2 != null) { stats.push(s); communesDone.add(k); }
+    if (s && s.ref_m2 != null) { stats.push(s); done.add(k); }
   }
 
-  // Pass 2 : fallback departement pour communes avec MIN_N_FALLBACK <= n < MIN_N
+  // Pass 2 : fallback shrink département (MIN_N_FALLBACK <= n < MIN_N)
   for (const [k, rows] of communeGroups) {
-    if (communesDone.has(k)) continue;
-    if (rows.length < MIN_N_FALLBACK) continue;
+    if (done.has(k) || rows.length < MIN_N_FALLBACK) continue;
     const [dept, codeC, commune, bucket] = k.split("|");
 
-    // Stats commune (insuffisantes mais existantes)
-    const communeStats = computeStats(rows, dept, codeC, commune, bucket, "commune_fallback");
-    if (!communeStats) continue;
+    const cs = computeStats(rows, dept, codeC, commune, bucket, "commune_fallback");
+    if (!cs) continue;
 
-    // Stats departement pour le meme bucket
     const deptK = dept+"|"+bucket;
     const deptRows = deptGroups.get(deptK);
     if (!deptRows || deptRows.length < MIN_N) {
-      // Pas assez au dept non plus -> on prend la commune telle quelle avec fiabilite C
-      communeStats.fiabilite = "C";
-      communeStats.source_level = "commune_small";
-      stats.push(communeStats);
+      cs.fiabilite = "C";
+      cs.source_level = "commune_small";
+      stats.push(cs);
       continue;
     }
 
-    // Shrink : alpha * commune + (1-alpha) * departement
-    const deptStats = computeStats(deptRows, dept, "", "", bucket, "dept");
-    if (!deptStats || !deptStats.ref_m2) {
-      communeStats.fiabilite = "C";
-      stats.push(communeStats);
-      continue;
-    }
+    const ds = computeStats(deptRows, dept, "", "", bucket, "dept");
+    if (!ds || !ds.ref_m2) { cs.fiabilite = "C"; stats.push(cs); continue; }
 
-    const alpha = communeStats.n_eff / (communeStats.n_eff + 75);
-    communeStats.ref_m2 = Math.round((alpha * communeStats.ref_raw + (1-alpha) * deptStats.ref_m2) * 100) / 100;
-    communeStats.source_level = "commune_shrink";
-    communeStats.fiabilite = communeStats.fiabilite === "A" ? "B" : "C";
-    stats.push(communeStats);
+    // v3: lambda = 60
+    const alpha = cs.n_eff / (cs.n_eff + LAMBDA_SHRINK);
+    cs.ref_m2 = Math.round((alpha * cs.ref_raw + (1-alpha) * ds.ref_m2) * 100) / 100;
+    cs.source_level = "commune_shrink";
+    if (cs.fiabilite === "A") cs.fiabilite = "B";
+    stats.push(cs);
   }
 
   stats.sort((a,b) => norm(a.nom_commune).localeCompare(norm(b.nom_commune)) || a.piece_bucket.localeCompare(b.piece_bucket));
