@@ -8,16 +8,12 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e1a; color: #e0e0e0; min-height: 100vh; }
 
-    /* NAV */
-    .topbar { background: #0d1117; border-bottom: 1px solid #1a2035; padding: .75rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+    .topbar { background: #0d1117; border-bottom: 1px solid #1a2035; padding: .75rem 2rem; display: flex; align-items: center; gap: 1.5rem; }
     .topbar h1 { font-size: 1.1rem; color: #00d4aa; }
-    .topbar nav a { color: #888; text-decoration: none; margin-left: 1.5rem; font-size: .85rem; }
-    .topbar nav a:hover { color: #00d4aa; }
-    .topbar .status { font-size: .75rem; color: #555; }
+    .topbar .status { font-size: .75rem; color: #555; margin-left: auto; }
 
     .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
 
-    /* TABS */
     .tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 1px solid #1a2035; }
     .tab { padding: .75rem 1.5rem; cursor: pointer; color: #888; font-size: .9rem; border-bottom: 2px solid transparent; transition: all .2s; }
     .tab:hover { color: #e0e0e0; }
@@ -25,520 +21,803 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* CARDS */
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
     .card { background: #161b2e; border: 1px solid #2a3050; border-radius: 10px; padding: 1.2rem; }
     .card .label { font-size: .75rem; color: #888; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .4rem; }
-    .card .value { font-size: 1.6rem; font-weight: 700; color: #00d4aa; }
-    .card .sub { font-size: .8rem; color: #666; margin-top: .25rem; }
+    .card .value { font-size: 1.5rem; font-weight: 700; color: #00d4aa; }
+    .card .sub { font-size: .78rem; color: #666; margin-top: .2rem; }
 
-    /* SEARCH */
     .search-bar { margin-bottom: 1rem; }
-    .search-bar input {
-      width: 100%; background: #161b2e; border: 1px solid #2a3050; color: #e0e0e0;
-      padding: .6rem 1rem; border-radius: 8px; font-size: .9rem; outline: none;
-    }
+    .search-bar input { width: 100%; background: #161b2e; border: 1px solid #2a3050; color: #e0e0e0; padding: .6rem 1rem; border-radius: 8px; font-size: .9rem; outline: none; }
     .search-bar input:focus { border-color: #00d4aa; }
     .search-bar input::placeholder { color: #555; }
 
-    /* TABLES */
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: .82rem; }
     th { background: #161b2e; color: #00d4aa; font-weight: 600; text-align: left; padding: .6rem .75rem; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
     th:hover { background: #1a2240; }
-    th .sort-arrow { font-size: .65rem; margin-left: .3rem; color: #555; }
     td { padding: .5rem .75rem; border-bottom: 1px solid #1a2035; white-space: nowrap; }
     tr:hover td { background: rgba(0,212,170,.03); }
     .num { text-align: right; font-variant-numeric: tabular-nums; }
-    .highlight { color: #00d4aa; font-weight: 600; }
+    .hl { color: #00d4aa; font-weight: 600; }
 
-    /* DEPT CARDS */
     .dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem; }
     .dept-card { background: #161b2e; border: 1px solid #2a3050; border-radius: 10px; padding: 1rem; }
     .dept-card h3 { color: #00d4aa; font-size: .95rem; margin-bottom: .75rem; }
     .dept-card .row { display: flex; justify-content: space-between; font-size: .8rem; padding: .25rem 0; }
     .dept-card .row .lbl { color: #888; }
 
-    /* LOYER */
     .loyer-bar { display: flex; align-items: center; gap: .5rem; margin-bottom: .2rem; font-size: .82rem; }
     .loyer-bar .bar-bg { flex: 1; height: 8px; background: #1a2035; border-radius: 4px; overflow: hidden; }
     .loyer-bar .bar-fill { height: 100%; background: #00d4aa; border-radius: 4px; }
-    .loyer-bar .commune-name { width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .loyer-bar .loyer-val { width: 70px; text-align: right; color: #00d4aa; font-weight: 600; }
+    .loyer-bar .cname { width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .loyer-bar .lval { width: 70px; text-align: right; color: #00d4aa; font-weight: 600; }
 
-    /* EXTRACT */
-    .extract-btn {
-      padding: .6rem 1.2rem; border: none; border-radius: 8px; font-size: .85rem;
-      cursor: pointer; font-weight: 600; background: #2a3050; color: #e0e0e0; transition: all .2s;
-    }
+    /* UPLOAD */
+    .drop-zone { border: 2px dashed #2a3050; border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: all .2s; margin-bottom: 1rem; }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #00d4aa; background: rgba(0,212,170,.05); }
+    .drop-zone p { color: #888; margin-bottom: .3rem; }
+    .drop-zone .hint { font-size: .8rem; color: #555; }
+    .drop-zone .accepted { font-size: .75rem; color: #00d4aa; margin-top: .4rem; }
+
+    .file-item { display: flex; align-items: center; background: #161b2e; border: 1px solid #2a3050; border-radius: 8px; padding: .5rem 1rem; margin-bottom: .4rem; font-size: .82rem; }
+    .file-item .fname { flex: 1; }
+    .file-item .fsize { color: #888; margin: 0 .75rem; }
+    .file-item .fstatus { width: 80px; text-align: right; }
+    .file-item .fstatus.ok { color: #00d4aa; }
+    .file-item .fstatus.err { color: #ff4444; }
+    .file-item .fstatus.wait { color: #888; }
+    .file-item .fstatus.up { color: #ffaa00; }
+    .file-item .tag { font-size: .68rem; padding: .1rem .35rem; border-radius: 3px; margin-right: .5rem; }
+    .file-item .tag.new { background: #00d4aa22; color: #00d4aa; }
+    .file-item .tag.upd { background: #ffaa0022; color: #ffaa00; }
+    .file-item .rm { cursor: pointer; color: #ff4444; margin-left: .5rem; }
+
+    .alert { padding: .6rem 1rem; border-radius: 8px; font-size: .82rem; margin-bottom: 1rem; display: none; }
+    .alert.error { background: rgba(255,68,68,.1); border: 1px solid #ff4444; color: #ff6666; display: block; }
+
+    .btn { padding: .65rem 1.4rem; border: none; border-radius: 8px; font-size: .88rem; cursor: pointer; font-weight: 600; transition: all .2s; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: #00d4aa; color: #0a0e1a; }
+    .btn-primary:hover:not(:disabled) { background: #00f0c0; }
+    .btn-secondary { background: #2a3050; color: #e0e0e0; }
+    .btn-secondary:hover:not(:disabled) { background: #3a4060; }
+
+    .gh-files { margin: 1.5rem 0; }
+    .gh-files h4 { color: #888; font-size: .82rem; margin-bottom: .5rem; }
+
+    .log { background: #0d1117; border: 1px solid #2a3050; border-radius: 8px; padding: .75rem; font-family: monospace; font-size: .78rem; max-height: 180px; overflow-y: auto; margin-top: 1rem; }
+    .log .l { margin-bottom: .2rem; }
+    .log .l.ok { color: #00d4aa; }
+    .log .l.er { color: #ff4444; }
+    .log .l.in { color: #888; }
+
+    .extract-btn { padding: .55rem 1rem; border: none; border-radius: 8px; font-size: .82rem; cursor: pointer; font-weight: 600; background: #2a3050; color: #e0e0e0; transition: all .2s; }
     .extract-btn:hover { background: #3a4060; }
     .extract-btn.push { background: #00d4aa; color: #0a0e1a; }
     .extract-btn.push:hover { background: #00f0c0; }
 
-    .loading { text-align: center; padding: 3rem; color: #555; }
-    .error-msg { text-align: center; padding: 2rem; color: #ff4444; }
+    .progress { margin: 1rem 0; }
+    .progress-bar { height: 6px; background: #1a2035; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #00d4aa; transition: width .3s; width: 0; }
+    .progress-text { font-size: .78rem; color: #888; margin-top: .3rem; }
   </style>
 </head>
 <body>
   <div class="topbar">
     <h1>DVF Dashboard</h1>
-    <span class="status" id="dataStatus">Chargement...</span>
-    <nav>
-      <a href="upload.html">Upload</a>
-    </nav>
+    <span class="status" id="dataStatus">Aucune donnee chargee</span>
   </div>
 
   <div class="container">
     <div class="tabs">
-      <div class="tab active" data-tab="global">Global</div>
-      <div class="tab" data-tab="dept">Par Departement</div>
-      <div class="tab" data-tab="commune">Par Commune</div>
-      <div class="tab" data-tab="loyer">Loyers</div>
-      <div class="tab" data-tab="extract">Extract JSON</div>
+      <div class="tab active" data-tab="upload">1. Donnees</div>
+      <div class="tab" data-tab="results">2. Resultats</div>
+      <div class="tab" data-tab="extract">3. Extract JSON</div>
     </div>
 
-    <!-- GLOBAL -->
-    <div class="tab-content active" id="tab-global">
-      <div class="cards" id="globalCards"></div>
-      <h3 style="color:#888;font-size:.85rem;margin-bottom:.75rem">Top 10 communes les plus cheres (mediane ponderee)</h3>
-      <div class="table-wrap">
-        <table id="topTable"><thead></thead><tbody></tbody></table>
-      </div>
-    </div>
-
-    <!-- DEPARTEMENT -->
-    <div class="tab-content" id="tab-dept">
-      <div class="search-bar"><input id="deptSearch" placeholder="Rechercher un departement..." /></div>
-      <div class="dept-grid" id="deptGrid"></div>
-    </div>
-
-    <!-- COMMUNE -->
-    <div class="tab-content" id="tab-commune">
-      <div class="search-bar"><input id="communeSearch" placeholder="Rechercher une commune..." /></div>
-      <div class="table-wrap" style="max-height:70vh;overflow-y:auto">
-        <table id="communeTable"><thead></thead><tbody></tbody></table>
-      </div>
-    </div>
-
-    <!-- LOYER -->
-    <div class="tab-content" id="tab-loyer">
-      <div class="cards" id="loyerCards"></div>
-      <div class="search-bar"><input id="loyerSearch" placeholder="Rechercher une commune..." /></div>
-      <div id="loyerBars" style="max-height:60vh;overflow-y:auto"></div>
-    </div>
-    <!-- EXTRACT JSON -->
-    <div class="tab-content" id="tab-extract">
-      <div class="cards">
-        <div class="card"><div class="label">Villes detectees</div><div class="value" id="extractCount">-</div></div>
-        <div class="card"><div class="label">Departements</div><div class="value" id="extractDepts">-</div></div>
-      </div>
-
-      <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
-        <button class="extract-btn" id="btnDownloadJson">Telecharger villes_data.json</button>
-        <button class="extract-btn" id="btnCopyJson">Copier dans le presse-papier</button>
-        <button class="extract-btn push" id="btnPushJson">Push sur GitHub (DVFMAJ)</button>
-        <div style="display:flex;align-items:center;gap:.5rem;flex:1;min-width:250px">
-          <label style="color:#888;font-size:.8rem;white-space:nowrap">Push vers autre repo :</label>
-          <input id="pushRepoPath" type="text" placeholder="Bencode92/studyforge/contents/data/villes_data.json" style="flex:1;background:#161b2e;border:1px solid #2a3050;color:#e0e0e0;padding:.5rem .75rem;border-radius:6px;font-size:.8rem" />
-          <button class="extract-btn push" id="btnPushOther">Push</button>
+    <!-- ============ UPLOAD ============ -->
+    <div class="tab-content active" id="tab-upload">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+        <!-- Left: upload -->
+        <div>
+          <h3 style="color:#00d4aa;font-size:.95rem;margin-bottom:1rem">Ajouter des fichiers</h3>
+          <div class="alert" id="uploadAlert"></div>
+          <div class="drop-zone" id="dropZone">
+            <p>Glisser-deposer vos CSV</p>
+            <p class="hint">ou cliquer pour selectionner</p>
+            <p class="accepted">Capital_XX.csv | loyer_1ou2p.csv | loyer_3p.csv</p>
+            <input type="file" id="fileInput" multiple accept=".csv" style="display:none" />
+          </div>
+          <div id="fileList"></div>
+          <div style="display:flex;gap:.75rem;margin-top:.75rem">
+            <button class="btn btn-secondary" id="btnClear" disabled>Vider</button>
+            <button class="btn btn-primary" id="btnPush" disabled>Push sur GitHub</button>
+          </div>
+        </div>
+        <!-- Right: existing files on GitHub -->
+        <div>
+          <h3 style="color:#00d4aa;font-size:.95rem;margin-bottom:1rem">Fichiers sur GitHub</h3>
+          <div id="ghFileList"><span style="color:#555;font-size:.85rem">Chargement...</span></div>
+          <div style="margin-top:1rem">
+            <button class="btn btn-primary" id="btnAnalyze" disabled>Charger &amp; Analyser</button>
+          </div>
+          <div class="progress" id="progressWrap" style="display:none">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text" id="progressText"></div>
+          </div>
         </div>
       </div>
+      <div class="log" id="log" style="display:none"></div>
+    </div>
 
-      <div id="extractStatus" style="font-size:.85rem;margin-bottom:1rem;display:none"></div>
+    <!-- ============ RESULTS ============ -->
+    <div class="tab-content" id="tab-results">
+      <div id="noResults" style="text-align:center;padding:3rem;color:#555">
+        Aucune analyse lancee. Aller dans l'onglet "Donnees" et cliquer "Charger &amp; Analyser".
+      </div>
+      <div id="resultsContent" style="display:none">
+        <div class="tabs" id="subTabs" style="margin-bottom:1rem">
+          <div class="tab active" data-sub="global">Global</div>
+          <div class="tab" data-sub="dept">Par Dept</div>
+          <div class="tab" data-sub="commune">Par Commune</div>
+          <div class="tab" data-sub="loyer">Loyers</div>
+        </div>
+        <div class="tab-content active" id="sub-global">
+          <div class="cards" id="globalCards"></div>
+          <h4 style="color:#888;font-size:.82rem;margin-bottom:.5rem">Top 10 — prix/m2 le plus eleve</h4>
+          <div class="table-wrap"><table id="topTable"><thead></thead><tbody></tbody></table></div>
+        </div>
+        <div class="tab-content" id="sub-dept">
+          <div class="search-bar"><input id="deptSearch" placeholder="Rechercher un departement..." /></div>
+          <div class="dept-grid" id="deptGrid"></div>
+        </div>
+        <div class="tab-content" id="sub-commune">
+          <div class="search-bar"><input id="communeSearch" placeholder="Rechercher une commune..." /></div>
+          <div class="table-wrap" style="max-height:65vh;overflow-y:auto"><table id="communeTable"><thead></thead><tbody></tbody></table></div>
+        </div>
+        <div class="tab-content" id="sub-loyer">
+          <div class="cards" id="loyerCards"></div>
+          <div class="search-bar"><input id="loyerSearch" placeholder="Rechercher..." /></div>
+          <div id="loyerBars" style="max-height:55vh;overflow-y:auto"></div>
+        </div>
+      </div>
+    </div>
 
-      <div style="position:relative">
-        <div style="position:absolute;top:.5rem;right:.5rem;font-size:.75rem;color:#555">villes_data.json</div>
-        <pre id="jsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:50vh;overflow:auto;font-size:.75rem;color:#aaa;white-space:pre;tab-size:4"></pre>
+    <!-- ============ EXTRACT JSON ============ -->
+    <div class="tab-content" id="tab-extract">
+      <div id="noExtract" style="text-align:center;padding:3rem;color:#555">
+        Lancer d'abord une analyse dans l'onglet "Donnees".
+      </div>
+      <div id="extractContent" style="display:none">
+        <div class="cards">
+          <div class="card"><div class="label">Villes</div><div class="value" id="exVilles">-</div></div>
+          <div class="card"><div class="label">Departements</div><div class="value" id="exDepts">-</div></div>
+        </div>
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+          <button class="extract-btn" id="btnDlJson">Telecharger villes_data.json</button>
+          <button class="extract-btn" id="btnCopyJson">Copier</button>
+          <button class="extract-btn push" id="btnPushDVF">Push DVFMAJ</button>
+          <div style="display:flex;align-items:center;gap:.4rem;flex:1;min-width:250px">
+            <input id="pushPath" type="text" placeholder="Bencode92/studyforge/contents/data/villes_data.json" style="flex:1;background:#161b2e;border:1px solid #2a3050;color:#e0e0e0;padding:.45rem .6rem;border-radius:6px;font-size:.8rem" />
+            <button class="extract-btn push" id="btnPushOther">Push</button>
+          </div>
+        </div>
+        <div id="exStatus" style="font-size:.82rem;margin-bottom:.75rem;display:none"></div>
+        <pre id="jsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:50vh;overflow:auto;font-size:.72rem;color:#aaa"></pre>
       </div>
     </div>
   </div>
 
-  <script>
-    // ===== CONFIG =====
-    const WORKER_URL = "https://studyforge-proxy.benoit-comas.workers.dev";
-    const RAW_BASE = "https://raw.githubusercontent.com/Bencode92/DVFMAJ/main";
-    const CSV_URL = RAW_BASE + "/output/resultats.csv";
+<script>
+// ===================================================================
+// CONFIG
+// ===================================================================
+const WORKER_URL = "https://studyforge-proxy.benoit-comas.workers.dev";
+const REPO = "Bencode92/DVFMAJ";
+const BRANCH = "main";
+const RAW = "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH;
 
-    let DATA = [];
-    let sortCol = null, sortAsc = true;
+const AS_OF = new Date(2025, 9, 31); // Oct 31, 2025
+const HALF_LIFE_DAYS = 30.4375 * 12;
+const BETA_SURFACE = -0.20;
+const Q_LOW = 0.10;
+const Q_HIGH = 0.90;
+const MIN_N = 20;
 
-    // ===== LOAD =====
-    async function loadData() {
-      try {
-        const resp = await fetch(CSV_URL);
-        if (!resp.ok) throw new Error("HTTP " + resp.status);
-        const text = await resp.text();
-        DATA = parseCSV(text);
-        document.getElementById("dataStatus").textContent = `${DATA.length} lignes chargees`;
-        renderAll();
-      } catch (e) {
-        document.getElementById("dataStatus").textContent = "Erreur chargement";
-        document.getElementById("tab-global").innerHTML = `<div class="error-msg">Impossible de charger resultats.csv<br><small>${e.message}</small><br><br><small>Lancer <code>python3 src/analytics.py</code> puis committer output/resultats.csv</small></div>`;
-      }
-    }
+const VALID_PAT = [/^Capital_\d{2,3}[A-B]?\.csv$/i, /^loyer_1ou2p\.csv$/i, /^loyer_3p\.csv$/i];
 
-    function parseCSV(text) {
-      const lines = text.trim().split("\n");
-      const headers = lines[0].split(",");
-      const numCols = ["ref_m2","ref_raw","mean_w","n_mut","n_eff","mad_w","p25","p75","surf_med","age_med_j","Loyer"];
-      return lines.slice(1).map(line => {
-        const vals = line.split(",");
-        const obj = {};
-        headers.forEach((h, i) => {
-          const v = vals[i] || "";
-          obj[h] = numCols.includes(h) ? (v === "" || v === "null" ? null : parseFloat(v)) : v;
-        });
-        return obj;
-      });
-    }
+// ===================================================================
+// STATE
+// ===================================================================
+let uploadFiles = new Map();
+let STATS = []; // final analytics results
+let VILLES_JSON = null;
+let sortCol = null, sortAsc = true;
 
-    // ===== TABS =====
-    document.querySelectorAll(".tab").forEach(tab => {
-      tab.addEventListener("click", () => {
-        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-        document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
-        tab.classList.add("active");
-        document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
-      });
+// ===================================================================
+// TABS
+// ===================================================================
+document.querySelectorAll(".tabs").forEach(tabBar => {
+  tabBar.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      const attr = tab.dataset.tab || tab.dataset.sub;
+      const prefix = tab.dataset.tab ? "tab-" : "sub-";
+      tabBar.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      const parent = tabBar.parentElement;
+      parent.querySelectorAll(":scope > .tab-content").forEach(tc => tc.classList.remove("active"));
+      const target = parent.querySelector("#" + prefix + attr);
+      if (target) target.classList.add("active");
     });
+  });
+});
 
-    // ===== RENDER ALL =====
-    function renderAll() {
-      renderGlobal();
-      renderDept();
-      renderCommune();
-      renderLoyer();
-      renderExtract();
+// ===================================================================
+// NORMALIZE TEXT
+// ===================================================================
+function norm(s) {
+  if (!s) return "";
+  return s.toUpperCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s\-']+/g, " ").trim();
+}
+
+// ===================================================================
+// UPLOAD SECTION
+// ===================================================================
+const dropZone = document.getElementById("dropZone");
+const fileInput = document.getElementById("fileInput");
+const btnPush = document.getElementById("btnPush");
+const btnClear = document.getElementById("btnClear");
+const alertEl = document.getElementById("uploadAlert");
+const logEl = document.getElementById("log");
+
+dropZone.addEventListener("click", () => fileInput.click());
+dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", e => { e.preventDefault(); dropZone.classList.remove("dragover"); addFiles(e.dataTransfer.files); });
+fileInput.addEventListener("change", () => { addFiles(fileInput.files); fileInput.value = ""; });
+
+function addFiles(fl) {
+  let bad = [];
+  for (const f of fl) {
+    if (!f.name.endsWith(".csv") || !VALID_PAT.some(p => p.test(f.name))) { bad.push(f.name); continue; }
+    uploadFiles.set(f.name, { file: f, status: "wait", isUpdate: false });
+  }
+  if (bad.length) { alertEl.className = "alert error"; alertEl.textContent = "Refuses (format attendu Capital_XX.csv / loyer_*.csv) : " + bad.join(", "); setTimeout(() => alertEl.className = "alert", 5000); }
+  renderUploadList();
+}
+
+function renderUploadList() {
+  const el = document.getElementById("fileList");
+  el.innerHTML = "";
+  for (const [n, d] of uploadFiles) {
+    const sz = (d.file.size/1024/1024).toFixed(1);
+    const st = {wait:"En attente",up:"Upload...",ok:"OK",err:"Erreur"}[d.status];
+    const tag = d.isUpdate ? '<span class="tag upd">MAJ</span>' : '<span class="tag new">Nouveau</span>';
+    el.innerHTML += `<div class="file-item">${tag}<span class="fname">${n}</span><span class="fsize">${sz} Mo</span><span class="fstatus ${d.status}">${st}</span><span class="rm" onclick="rmFile('${n}')">&times;</span></div>`;
+  }
+  btnPush.disabled = uploadFiles.size === 0;
+  btnClear.disabled = uploadFiles.size === 0;
+}
+window.rmFile = n => { uploadFiles.delete(n); renderUploadList(); };
+btnClear.addEventListener("click", () => { uploadFiles.clear(); renderUploadList(); });
+
+btnPush.addEventListener("click", async () => {
+  btnPush.disabled = true;
+  logEl.style.display = "block"; logEl.innerHTML = "";
+  lg("Verification fichiers existants...", "in");
+
+  // Check existing
+  for (const [n, d] of uploadFiles) {
+    if (d.status === "ok") continue;
+    try { const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data/${n}?ref=${BRANCH}`); if (r.ok) { const j = await r.json(); d.sha = j.sha; d.isUpdate = true; } } catch(e) {}
+  }
+  renderUploadList();
+
+  let ok=0, er=0;
+  for (const [n, d] of uploadFiles) {
+    if (d.status === "ok") { ok++; continue; }
+    d.status = "up"; renderUploadList();
+    try {
+      const content = await readB64(d.file);
+      const body = { message: d.isUpdate ? `data: update ${n}` : `data: add ${n}`, content, branch: BRANCH };
+      if (d.sha) body.sha = d.sha;
+      const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data/${n}`, { method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+      if (r.ok) { d.status = "ok"; ok++; lg(`${n}: OK`, "ok"); } else { const e = await r.json().catch(()=>({})); throw new Error(e.message||"HTTP "+r.status); }
+    } catch(e) { d.status = "err"; er++; lg(`${n}: ${e.message}`, "er"); }
+    renderUploadList();
+  }
+  lg(`Termine: ${ok} OK, ${er} erreurs`, ok>0&&er===0?"ok":"er");
+  btnPush.disabled = false;
+  loadGhFiles();
+});
+
+function readB64(f) { return new Promise((res,rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(f); }); }
+function lg(m, c) { logEl.innerHTML += `<div class="l ${c}">${new Date().toLocaleTimeString()} — ${m}</div>`; logEl.scrollTop = logEl.scrollHeight; }
+
+// ===================================================================
+// GITHUB FILE LIST
+// ===================================================================
+async function loadGhFiles() {
+  const el = document.getElementById("ghFileList");
+  try {
+    const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data?ref=${BRANCH}`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const files = await r.json();
+    const csvs = files.filter(f => f.name.endsWith(".csv")).sort((a,b) => a.name.localeCompare(b.name));
+    el.innerHTML = csvs.map(f => {
+      const sz = f.size ? (f.size/1024/1024).toFixed(1)+" Mo" : "";
+      const isCapital = /^Capital_/i.test(f.name);
+      const color = isCapital ? "#00d4aa" : "#ffaa00";
+      return `<div class="file-item"><span class="fname" style="color:${color}">${f.name}</span><span class="fsize">${sz}</span></div>`;
+    }).join("") || '<span style="color:#555">Aucun fichier</span>';
+    document.getElementById("btnAnalyze").disabled = csvs.length === 0;
+  } catch(e) { el.innerHTML = `<span style="color:#ff4444">Erreur: ${e.message}</span>`; }
+}
+
+// ===================================================================
+// ANALYZE: load CSVs from GitHub and process
+// ===================================================================
+document.getElementById("btnAnalyze").addEventListener("click", runAnalysis);
+
+async function runAnalysis() {
+  const btn = document.getElementById("btnAnalyze");
+  btn.disabled = true; btn.textContent = "Analyse en cours...";
+  const pw = document.getElementById("progressWrap"); pw.style.display = "block";
+  setProgress(0, "Chargement de la liste des fichiers...");
+
+  try {
+    // 1) List files
+    const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data?ref=${BRANCH}`);
+    const files = await r.json();
+    const capitals = files.filter(f => /^Capital_/i.test(f.name) && f.name.endsWith(".csv"));
+    const loyerFiles = files.filter(f => /^loyer_/i.test(f.name) && f.name.endsWith(".csv"));
+
+    // 2) Download all CSVs
+    let allRows = [];
+    for (let i = 0; i < capitals.length; i++) {
+      setProgress((i / (capitals.length + loyerFiles.length)) * 80, `Telechargement ${capitals[i].name}...`);
+      const csv = await fetch(RAW + "/data/" + capitals[i].name).then(r => r.text());
+      const rows = parseCSV(csv);
+      allRows = allRows.concat(rows);
+    }
+    setProgress(70, `${allRows.length.toLocaleString("fr")} lignes brutes chargees. Telechargement loyers...`);
+
+    // 3) Download loyers
+    let loyerRows12 = [], loyerRows3p = [];
+    for (const lf of loyerFiles) {
+      setProgress(75, `Telechargement ${lf.name}...`);
+      const csv = await fetch(RAW + "/data/" + lf.name).then(r => r.text());
+      const rows = parseLoyerCSV(csv);
+      if (/1ou2p/i.test(lf.name)) loyerRows12 = rows;
+      else loyerRows3p = rows;
     }
 
-    // ===== GLOBAL =====
-    function renderGlobal() {
-      const communes = [...new Set(DATA.map(d => d.nom_commune))];
-      const depts = [...new Set(DATA.map(d => d.code_departement))];
-      const totalMut = DATA.reduce((s, d) => s + (d.n_mut || 0), 0);
-      const prices = DATA.filter(d => d.ref_m2 != null);
-      const avgPrice = prices.length ? (prices.reduce((s, d) => s + d.ref_m2, 0) / prices.length) : 0;
-      const loyers = DATA.filter(d => d.Loyer != null);
-      const avgLoyer = loyers.length ? (loyers.reduce((s, d) => s + d.Loyer, 0) / loyers.length) : 0;
-      const avgSurf = DATA.filter(d => d.surf_med).reduce((s, d, _, a) => s + d.surf_med / a.length, 0);
+    // 4) Transform
+    setProgress(80, "Filtrage et agregation des mutations...");
+    await sleep(10);
+    const venteData = transformPipeline(allRows);
+    setProgress(88, `${venteData.length.toLocaleString("fr")} mutations apres trimming. Calcul des stats...`);
+    await sleep(10);
 
-      document.getElementById("globalCards").innerHTML = `
-        <div class="card"><div class="label">Departements</div><div class="value">${depts.length}</div></div>
-        <div class="card"><div class="label">Communes</div><div class="value">${communes.length}</div></div>
-        <div class="card"><div class="label">Mutations totales</div><div class="value">${totalMut.toLocaleString("fr")}</div></div>
-        <div class="card"><div class="label">Prix moyen /m2</div><div class="value">${fmt(avgPrice)}</div><div class="sub">mediane ponderee</div></div>
-        <div class="card"><div class="label">Loyer moyen /m2</div><div class="value">${avgLoyer > 0 ? avgLoyer.toFixed(1) + " EUR" : "N/A"}</div></div>
-        <div class="card"><div class="label">Surface mediane</div><div class="value">${avgSurf.toFixed(0)} m2</div></div>
-      `;
+    // 5) Analytics
+    STATS = analyticsPipeline(venteData, loyerRows12, loyerRows3p);
+    setProgress(95, "Generation du JSON...");
+    await sleep(10);
 
-      // Top 10
-      const top = [...DATA].filter(d => d.ref_m2).sort((a, b) => b.ref_m2 - a.ref_m2).slice(0, 10);
-      const thead = document.querySelector("#topTable thead");
-      const tbody = document.querySelector("#topTable tbody");
-      thead.innerHTML = "<tr><th>Commune</th><th>Pieces</th><th class='num'>Prix/m2</th><th class='num'>P25</th><th class='num'>P75</th><th class='num'>Loyer/m2</th><th class='num'>Mutations</th></tr>";
-      tbody.innerHTML = top.map(d => `<tr>
-        <td>${d.nom_commune}</td><td>${d.piece_bucket}p</td>
-        <td class="num highlight">${fmt(d.ref_m2)}</td>
-        <td class="num">${fmt(d.p25)}</td><td class="num">${fmt(d.p75)}</td>
-        <td class="num">${d.Loyer ? d.Loyer.toFixed(1) : "-"}</td>
-        <td class="num">${d.n_mut}</td>
-      </tr>`).join("");
-    }
+    // 6) Build JSON
+    VILLES_JSON = buildVillesJson(STATS);
 
-    // ===== DEPARTEMENT =====
-    function renderDept(filter) {
-      const groups = {};
-      DATA.forEach(d => {
-        const k = d.code_departement;
-        if (!groups[k]) groups[k] = { dept: k, rows: [] };
-        groups[k].rows.push(d);
-      });
+    setProgress(100, `Termine: ${STATS.length} lignes, ${VILLES_JSON.villes.length} villes`);
+    document.getElementById("dataStatus").textContent = `${STATS.length} lignes | ${VILLES_JSON.villes.length} villes`;
 
-      let depts = Object.values(groups).map(g => {
-        const prices = g.rows.filter(r => r.ref_m2 != null);
-        const loyers = g.rows.filter(r => r.Loyer != null);
-        const communes = [...new Set(g.rows.map(r => r.nom_commune))];
-        return {
-          dept: g.dept,
-          communes: communes.length,
-          mutations: g.rows.reduce((s, r) => s + (r.n_mut || 0), 0),
-          avgPrice: prices.length ? prices.reduce((s, r) => s + r.ref_m2, 0) / prices.length : null,
-          minPrice: prices.length ? Math.min(...prices.map(r => r.ref_m2)) : null,
-          maxPrice: prices.length ? Math.max(...prices.map(r => r.ref_m2)) : null,
-          avgLoyer: loyers.length ? loyers.reduce((s, r) => s + r.Loyer, 0) / loyers.length : null,
-        };
-      }).sort((a, b) => a.dept.localeCompare(b.dept));
+    // Show results
+    document.getElementById("noResults").style.display = "none";
+    document.getElementById("resultsContent").style.display = "block";
+    document.getElementById("noExtract").style.display = "none";
+    document.getElementById("extractContent").style.display = "block";
+    renderResults();
+    renderExtract();
 
-      if (filter) {
-        const f = filter.toLowerCase();
-        depts = depts.filter(d => d.dept.toLowerCase().includes(f));
-      }
+  } catch(e) {
+    setProgress(0, "Erreur: " + e.message);
+    console.error(e);
+  }
+  btn.disabled = false; btn.textContent = "Charger & Analyser";
+}
 
-      document.getElementById("deptGrid").innerHTML = depts.map(d => `
-        <div class="dept-card">
-          <h3>Departement ${d.dept}</h3>
-          <div class="row"><span class="lbl">Communes</span><span>${d.communes}</span></div>
-          <div class="row"><span class="lbl">Mutations</span><span>${d.mutations.toLocaleString("fr")}</span></div>
-          <div class="row"><span class="lbl">Prix moyen /m2</span><span style="color:#00d4aa">${fmt(d.avgPrice)}</span></div>
-          <div class="row"><span class="lbl">Prix min /m2</span><span>${fmt(d.minPrice)}</span></div>
-          <div class="row"><span class="lbl">Prix max /m2</span><span>${fmt(d.maxPrice)}</span></div>
-          <div class="row"><span class="lbl">Loyer moyen /m2</span><span>${d.avgLoyer ? d.avgLoyer.toFixed(1) + " EUR" : "-"}</span></div>
-        </div>
-      `).join("");
-    }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function setProgress(pct, txt) {
+  document.getElementById("progressFill").style.width = pct + "%";
+  document.getElementById("progressText").textContent = txt;
+}
 
-    document.getElementById("deptSearch").addEventListener("input", e => renderDept(e.target.value));
-
-    // ===== COMMUNE =====
-    function renderCommune(filter) {
-      let rows = [...DATA];
-      if (filter) {
-        const f = filter.toLowerCase();
-        rows = rows.filter(d => d.nom_commune.toLowerCase().includes(f) || d.code_commune.includes(f));
-      }
-
-      const thead = document.querySelector("#communeTable thead");
-      const tbody = document.querySelector("#communeTable tbody");
-
-      const cols = [
-        { key: "nom_commune", label: "Commune", cls: "" },
-        { key: "piece_bucket", label: "Pieces", cls: "" },
-        { key: "ref_m2", label: "Prix/m2", cls: "num" },
-        { key: "mean_w", label: "Moyenne", cls: "num" },
-        { key: "p25", label: "P25", cls: "num" },
-        { key: "p75", label: "P75", cls: "num" },
-        { key: "mad_w", label: "MAD", cls: "num" },
-        { key: "n_mut", label: "Mut.", cls: "num" },
-        { key: "n_eff", label: "N eff.", cls: "num" },
-        { key: "surf_med", label: "Surf.", cls: "num" },
-        { key: "age_med_j", label: "Age (j)", cls: "num" },
-        { key: "Loyer", label: "Loyer/m2", cls: "num" },
-      ];
-
-      if (sortCol) {
-        rows.sort((a, b) => {
-          let va = a[sortCol], vb = b[sortCol];
-          if (va == null) return 1; if (vb == null) return -1;
-          if (typeof va === "string") return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
-          return sortAsc ? va - vb : vb - va;
-        });
-      }
-
-      thead.innerHTML = "<tr>" + cols.map(c =>
-        `<th class="${c.cls}" onclick="sortTable('${c.key}')">${c.label}<span class="sort-arrow">${sortCol === c.key ? (sortAsc ? " ▲" : " ▼") : ""}</span></th>`
-      ).join("") + "</tr>";
-
-      tbody.innerHTML = rows.map(d => `<tr>
-        <td>${d.nom_commune}</td>
-        <td>${d.piece_bucket}p</td>
-        <td class="num highlight">${fmt(d.ref_m2)}</td>
-        <td class="num">${fmt(d.mean_w)}</td>
-        <td class="num">${fmt(d.p25)}</td>
-        <td class="num">${fmt(d.p75)}</td>
-        <td class="num">${fmt(d.mad_w)}</td>
-        <td class="num">${d.n_mut || "-"}</td>
-        <td class="num">${d.n_eff ? d.n_eff.toFixed(1) : "-"}</td>
-        <td class="num">${d.surf_med ? d.surf_med.toFixed(0) : "-"}</td>
-        <td class="num">${d.age_med_j || "-"}</td>
-        <td class="num">${d.Loyer ? d.Loyer.toFixed(1) : "-"}</td>
-      </tr>`).join("");
-    }
-
-    window.sortTable = (col) => {
-      if (sortCol === col) sortAsc = !sortAsc;
-      else { sortCol = col; sortAsc = true; }
-      renderCommune(document.getElementById("communeSearch").value);
-    };
-
-    document.getElementById("communeSearch").addEventListener("input", e => renderCommune(e.target.value));
-
-    // ===== LOYER =====
-    function renderLoyer(filter) {
-      const withLoyer = DATA.filter(d => d.Loyer != null && d.piece_bucket === "2");
-      if (withLoyer.length === 0) {
-        document.getElementById("loyerCards").innerHTML = '<div class="card"><div class="label">Aucun loyer</div><div class="value">-</div></div>';
-        return;
-      }
-
-      const avgL = withLoyer.reduce((s, d) => s + d.Loyer, 0) / withLoyer.length;
-      const minL = Math.min(...withLoyer.map(d => d.Loyer));
-      const maxL = Math.max(...withLoyer.map(d => d.Loyer));
-
-      // Rendement brut moyen : loyer annuel / prix
-      const withBoth = withLoyer.filter(d => d.ref_m2 > 0);
-      const avgRendement = withBoth.length
-        ? withBoth.reduce((s, d) => s + (d.Loyer * 12 / d.ref_m2 * 100), 0) / withBoth.length : 0;
-
-      document.getElementById("loyerCards").innerHTML = `
-        <div class="card"><div class="label">Loyer moyen /m2</div><div class="value">${avgL.toFixed(1)} EUR</div><div class="sub">2 pieces</div></div>
-        <div class="card"><div class="label">Loyer min</div><div class="value">${minL.toFixed(1)} EUR</div></div>
-        <div class="card"><div class="label">Loyer max</div><div class="value">${maxL.toFixed(1)} EUR</div></div>
-        <div class="card"><div class="label">Rendement brut moyen</div><div class="value">${avgRendement.toFixed(2)}%</div><div class="sub">loyer*12 / prix</div></div>
-      `;
-
-      // Barres par commune
-      let communes = {};
-      withLoyer.forEach(d => {
-        if (!communes[d.nom_commune]) communes[d.nom_commune] = { loyer: d.Loyer, prix: d.ref_m2 };
-      });
-
-      let list = Object.entries(communes).map(([name, v]) => ({ name, ...v }));
-      if (filter) {
-        const f = filter.toLowerCase();
-        list = list.filter(d => d.name.toLowerCase().includes(f));
-      }
-      list.sort((a, b) => b.loyer - a.loyer);
-
-      document.getElementById("loyerBars").innerHTML = list.map(d => {
-        const pct = maxL > 0 ? (d.loyer / maxL * 100) : 0;
-        const rend = d.prix > 0 ? (d.loyer * 12 / d.prix * 100).toFixed(2) : "-";
-        return `<div class="loyer-bar">
-          <span class="commune-name" title="${d.name}">${d.name}</span>
-          <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
-          <span class="loyer-val">${d.loyer.toFixed(1)}</span>
-          <span style="width:60px;text-align:right;color:#888;font-size:.75rem">${rend}%</span>
-        </div>`;
-      }).join("");
-    }
-
-    document.getElementById("loyerSearch").addEventListener("input", e => renderLoyer(e.target.value));
-
-    // ===== EXTRACT JSON =====
-    function normalizeText(s) {
-      if (!s) return s;
-      return s.toUpperCase().trim()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .replace(/AE/g, "AE").replace(/OE/g, "OE")
-        .replace(/[\s\-']+/g, " ").trim();
-    }
-
-    function buildVillesJson() {
-      const bucketMap = { "1": "T1", "2": "T2", "3": "T3", "4": "T4", "5": "T5" };
-      const villes = {};
-
-      DATA.forEach(d => {
-        const nom = normalizeText(d.nom_commune);
-        const dept = d.code_departement;
-        const key = nom + "|" + dept;
-
-        if (!villes[key]) villes[key] = { nom, departement: dept, pieces: {} };
-
-        const tKey = bucketMap[d.piece_bucket] || ("T" + d.piece_bucket);
-        const piece = {};
-        if (d.ref_m2 != null) piece.prix_m2 = Math.round(d.ref_m2 * 100) / 100;
-        if (d.Loyer != null) piece.loyer_m2 = Math.round(d.Loyer * 100) / 100;
-        if (Object.keys(piece).length > 0) villes[key].pieces[tKey] = piece;
-      });
-
-      const sorted = Object.values(villes).sort((a, b) => a.nom.localeCompare(b.nom));
-      return { villes: sorted };
-    }
-
-    function renderExtract() {
-      const json = buildVillesJson();
-      const jsonStr = JSON.stringify(json, null, 4);
-      const depts = [...new Set(json.villes.map(v => v.departement))];
-
-      document.getElementById("extractCount").textContent = json.villes.length;
-      document.getElementById("extractDepts").textContent = depts.sort().join(", ");
-      document.getElementById("jsonPreview").textContent = jsonStr;
-
-      return jsonStr;
-    }
-
-    function showExtractStatus(msg, ok) {
-      const el = document.getElementById("extractStatus");
-      el.style.display = "block";
-      el.style.color = ok ? "#00d4aa" : "#ff4444";
-      el.textContent = msg;
-      setTimeout(() => { el.style.display = "none"; }, 4000);
-    }
-
-    // Download
-    document.getElementById("btnDownloadJson").addEventListener("click", () => {
-      const jsonStr = renderExtract();
-      const blob = new Blob([jsonStr], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "villes_data.json";
-      a.click();
-      URL.revokeObjectURL(a.href);
-      showExtractStatus("Fichier telecharge", true);
+// ===================================================================
+// CSV PARSING
+// ===================================================================
+function parseCSV(text) {
+  const lines = text.trim().split("\n");
+  const h = lines[0].split(",");
+  const idx = {};
+  ["id_mutation","date_mutation","nature_mutation","valeur_fonciere","type_local","surface_reelle_bati","nombre_pieces_principales","nom_commune","code_departement","code_commune"].forEach(c => { idx[c] = h.indexOf(c); });
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const v = lines[i].split(",");
+    if (idx.nature_mutation < 0) continue;
+    rows.push({
+      id: v[idx.id_mutation] || "",
+      date: v[idx.date_mutation] || "",
+      nature: (v[idx.nature_mutation] || "").replace(/"/g, ""),
+      vf: parseFloat(v[idx.valeur_fonciere]) || 0,
+      type: (v[idx.type_local] || "").replace(/"/g, ""),
+      surf: parseFloat(v[idx.surface_reelle_bati]) || 0,
+      pieces: parseInt(v[idx.nombre_pieces_principales]) || 0,
+      commune: (v[idx.nom_commune] || "").replace(/"/g, ""),
+      dept: (v[idx.code_departement] || "").replace(/"/g, ""),
+      codeC: (v[idx.code_commune] || "").replace(/"/g, ""),
     });
+  }
+  return rows;
+}
 
-    // Copy
-    document.getElementById("btnCopyJson").addEventListener("click", async () => {
-      const jsonStr = renderExtract();
-      try {
-        await navigator.clipboard.writeText(jsonStr);
-        showExtractStatus("Copie dans le presse-papier !", true);
-      } catch (e) {
-        showExtractStatus("Erreur copie: " + e.message, false);
-      }
+function parseLoyerCSV(text) {
+  const lines = text.trim().split("\n");
+  const h = lines[0].split(",");
+  const iLib = h.indexOf("LIBGEO");
+  const iLoy = h.indexOf("loypredm2");
+  if (iLib < 0 || iLoy < 0) return [];
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const v = lines[i].split(",");
+    const lib = (v[iLib] || "").replace(/"/g, "");
+    const loy = parseFloat(v[iLoy]);
+    if (lib && !isNaN(loy)) rows.push({ lib, loy });
+  }
+  return rows;
+}
+
+// ===================================================================
+// TRANSFORM PIPELINE (equivalent transform.py)
+// ===================================================================
+function transformPipeline(rawRows) {
+  // 1) Filter
+  const asOf = AS_OF.getTime();
+  const filtered = rawRows.filter(r =>
+    r.nature === "Vente" && r.type === "Appartement" &&
+    r.surf >= 9 && r.date !== "" && new Date(r.date).getTime() <= asOf
+  );
+
+  // 2) Aggregate by id_mutation
+  const groups = new Map();
+  for (const r of filtered) {
+    let g = groups.get(r.id);
+    if (!g) { g = { n:0, vf:0, surf:0, date:r.date, commune:r.commune, dept:r.dept, codeC:r.codeC, pieces:r.pieces }; groups.set(r.id, g); }
+    g.n++; g.vf += r.vf; g.surf += r.surf;
+    if (r.date > g.date) g.date = r.date;
+    if (r.pieces > g.pieces) g.pieces = r.pieces;
+  }
+
+  // 3) Single apartment, pieces <= 5, prix_m2 > 0
+  const muts = [];
+  for (const [, g] of groups) {
+    if (g.n !== 1 || g.pieces < 1 || g.pieces > 5 || g.surf <= 0) continue;
+    const pm2 = g.vf / g.surf;
+    if (pm2 <= 0) continue;
+    const dt = new Date(g.date);
+    const ageDays = Math.round((AS_OF - dt) / 86400000);
+    const tw = ageDays < 0 ? 1.0 : Math.pow(0.5, ageDays / HALF_LIFE_DAYS);
+    muts.push({
+      dept: g.dept, codeC: g.codeC, commune: g.commune,
+      bucket: String(Math.min(g.pieces, 5)),
+      pm2, surf: g.surf, ageDays, tw, w: tw > 0 ? tw : 1.0,
     });
+  }
 
-    // Push to DVFMAJ
-    document.getElementById("btnPushJson").addEventListener("click", () => {
-      pushJsonToGithub("Bencode92/DVFMAJ", "output/villes_data.json");
+  // 4) Surface trimming by (dept, bucket)
+  const gk = r => r.dept + "|" + r.bucket;
+  const surfQ = computeGroupQuantiles(muts, gk, r => r.surf, r => r.w, [Q_LOW, 0.5, Q_HIGH]);
+
+  const afterSurf = muts.filter(r => {
+    const k = gk(r);
+    const q = surfQ.get(k);
+    if (!q || q[0] == null || q[2] == null) return true;
+    return r.surf >= q[0] && r.surf <= q[2];
+  });
+
+  // 5) Adjust price by surface elasticity
+  const adjusted = afterSurf.map(r => {
+    const k = gk(r);
+    const q = surfQ.get(k);
+    const sRef = q ? q[1] : null;
+    const pm2Adj = (sRef && sRef > 0)
+      ? Math.exp(Math.log(r.pm2) - BETA_SURFACE * (Math.log(r.surf) - Math.log(sRef)))
+      : r.pm2;
+    return { ...r, pm2Adj };
+  }).filter(r => r.pm2Adj > 0);
+
+  // 6) Price trimming
+  const priceQ = computeGroupQuantiles(adjusted, gk, r => r.pm2Adj, r => r.w, [Q_LOW, Q_HIGH]);
+
+  return adjusted.filter(r => {
+    const k = gk(r);
+    const q = priceQ.get(k);
+    if (!q || q[0] == null || q[1] == null) return true;
+    return r.pm2Adj >= q[0] && r.pm2Adj <= q[1];
+  }).map(r => ({ ...r, pm2: r.pm2Adj }));
+}
+
+// ===================================================================
+// WEIGHTED QUANTILE HELPERS
+// ===================================================================
+function computeGroupQuantiles(rows, keyFn, valFn, wFn, quantiles) {
+  // Group
+  const groups = new Map();
+  for (const r of rows) {
+    const k = keyFn(r);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+
+  const result = new Map();
+  for (const [k, grp] of groups) {
+    // Sort by value
+    grp.sort((a, b) => valFn(a) - valFn(b));
+    const vals = grp.map(valFn);
+    const ws = grp.map(wFn);
+    const tot = ws.reduce((s, w) => s + w, 0);
+    if (tot <= 0) { result.set(k, quantiles.map(() => null)); continue; }
+
+    let cum = 0;
+    const cumW = ws.map(w => (cum += w, cum));
+
+    const qVals = quantiles.map(q => {
+      const tgt = q * tot;
+      const idx = cumW.findIndex(c => c >= tgt);
+      return idx >= 0 ? vals[idx] : null;
     });
+    result.set(k, qVals);
+  }
+  return result;
+}
 
-    // Push to other repo
-    document.getElementById("btnPushOther").addEventListener("click", () => {
-      const input = document.getElementById("pushRepoPath").value.trim();
-      if (!input) { showExtractStatus("Entrer le chemin: owner/repo/contents/path/file.json", false); return; }
-      // Parse: Bencode92/studyforge/contents/data/villes_data.json
-      const parts = input.split("/");
-      if (parts.length < 4) { showExtractStatus("Format: owner/repo/contents/path/to/file.json", false); return; }
-      const owner = parts[0];
-      const repo = parts[1];
-      const filePath = parts.slice(2).join("/").replace(/^contents\//, "");
-      pushJsonToGithub(owner + "/" + repo, filePath);
-    });
+function weightedMedian(vals, ws) {
+  if (vals.length === 0) return null;
+  const pairs = vals.map((v, i) => [v, ws[i]]).filter(p => p[1] > 0).sort((a, b) => a[0] - b[0]);
+  const tot = pairs.reduce((s, p) => s + p[1], 0);
+  if (tot <= 0) return null;
+  let cum = 0;
+  for (const [v, w] of pairs) { cum += w; if (cum >= 0.5 * tot) return v; }
+  return pairs[pairs.length - 1][0];
+}
 
-    async function pushJsonToGithub(repo, filePath) {
-      const jsonStr = renderExtract();
-      showExtractStatus("Push en cours...", true);
+// ===================================================================
+// ANALYTICS PIPELINE (equivalent analytics.py)
+// ===================================================================
+function analyticsPipeline(vente, loyer12, loyer3p) {
+  // Build loyer lookup: normalized name -> { l12, l3p }
+  const loyerMap = new Map();
+  for (const r of loyer12) { const k = norm(r.lib); loyerMap.set(k, { l12: r.loy, l3p: null }); }
+  for (const r of loyer3p) { const k = norm(r.lib); const e = loyerMap.get(k) || { l12: null }; e.l3p = r.loy; loyerMap.set(k, e); }
 
-      try {
-        // Check if file exists
-        let sha = null;
-        try {
-          const checkResp = await fetch(`${WORKER_URL}/github/${repo}/contents/${filePath}?ref=main`);
-          if (checkResp.ok) {
-            const checkData = await checkResp.json();
-            sha = checkData.sha;
-          }
-        } catch (e) { /* new file */ }
+  // Group by (dept, codeC, commune, bucket)
+  const groups = new Map();
+  for (const r of vente) {
+    const k = r.dept + "|" + r.codeC + "|" + r.commune + "|" + r.bucket;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
 
-        const body = {
-          message: "data: update villes_data.json",
-          content: btoa(unescape(encodeURIComponent(jsonStr))),
-          branch: "main",
-        };
-        if (sha) body.sha = sha;
+  const stats = [];
+  for (const [k, rows] of groups) {
+    if (rows.length < MIN_N) continue;
+    const [dept, codeC, commune, bucket] = k.split("|");
 
-        const putResp = await fetch(`${WORKER_URL}/github/${repo}/contents/${filePath}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
+    const vals = rows.map(r => r.pm2);
+    const ws = rows.map(r => r.w);
+    const surfs = rows.filter(r => r.surf > 0).map(r => r.surf);
+    const ages = rows.filter(r => r.ageDays != null).map(r => r.ageDays);
+    const surfWs = rows.filter(r => r.surf > 0).map(r => r.w);
+    const ageWs = rows.filter(r => r.ageDays != null).map(r => r.w);
 
-        if (putResp.ok) {
-          showExtractStatus(`Push OK vers ${repo}/${filePath}`, true);
-        } else {
-          const err = await putResp.json().catch(() => ({}));
-          throw new Error(err.message || "HTTP " + putResp.status);
-        }
-      } catch (e) {
-        showExtractStatus("Erreur push: " + e.message, false);
-      }
+    // Sort for quantiles
+    const sorted = vals.map((v, i) => [v, ws[i]]).sort((a, b) => a[0] - b[0]);
+    const sVals = sorted.map(s => s[0]), sWs = sorted.map(s => s[1]);
+    const tot = sWs.reduce((s, w) => s + w, 0);
+
+    const qFn = (sv, sw, t, q) => { let c=0; const tgt=q*t; for(let i=0;i<sv.length;i++){c+=sw[i];if(c>=tgt)return sv[i];} return null; };
+
+    const med = qFn(sVals, sWs, tot, 0.5);
+    const p25 = qFn(sVals, sWs, tot, 0.25);
+    const p75 = qFn(sVals, sWs, tot, 0.75);
+
+    // Mean
+    const num = sVals.reduce((s, v, i) => s + v * sWs[i], 0);
+    const meanW = tot > 0 ? num / tot : null;
+
+    // MAD
+    let madW = null;
+    if (med != null) {
+      const devs = sVals.map((v, i) => [Math.abs(v - med), sWs[i]]).sort((a, b) => a[0] - b[0]);
+      const dV = devs.map(d => d[0]), dW = devs.map(d => d[1]);
+      const dTot = dW.reduce((s, w) => s + w, 0);
+      const rawMad = qFn(dV, dW, dTot, 0.5);
+      if (rawMad != null) madW = 1.4826 * rawMad;
     }
 
-    // ===== HELPERS =====
-    function fmt(v) { return v != null ? Math.round(v).toLocaleString("fr") + " EUR" : "-"; }
+    // N eff
+    const w2 = ws.reduce((s, w) => s + w * w, 0);
+    const nEff = w2 > 0 ? (tot * tot) / w2 : 0;
 
-    // ===== INIT =====
-    loadData();
-  </script>
+    // Surf median, age median
+    const surfMed = weightedMedian(surfs, surfWs);
+    const ageMed = weightedMedian(ages, ageWs);
+
+    // Loyer
+    const lk = norm(commune);
+    const loyer = loyerMap.get(lk);
+    let loyerVal = null;
+    if (loyer) loyerVal = (bucket === "1" || bucket === "2") ? loyer.l12 : loyer.l3p;
+
+    stats.push({
+      code_departement: dept, code_commune: codeC, nom_commune: commune, piece_bucket: bucket,
+      ref_m2: med, ref_raw: med, mean_w: meanW, n_mut: rows.length, n_eff: nEff,
+      mad_w: madW, p25, p75, surf_med: surfMed, age_med_j: ageMed, Loyer: loyerVal, source_level: "commune",
+    });
+  }
+
+  stats.sort((a, b) => norm(a.nom_commune).localeCompare(norm(b.nom_commune)) || a.piece_bucket.localeCompare(b.piece_bucket));
+  return stats;
+}
+
+// ===================================================================
+// BUILD VILLES JSON
+// ===================================================================
+function buildVillesJson(stats) {
+  const map = {};
+  const bMap = {"1":"T1","2":"T2","3":"T3","4":"T4","5":"T5"};
+  for (const r of stats) {
+    const nom = norm(r.nom_commune);
+    const k = nom + "|" + r.code_departement;
+    if (!map[k]) map[k] = { nom, departement: r.code_departement, pieces: {} };
+    const p = {};
+    if (r.ref_m2 != null) p.prix_m2 = Math.round(r.ref_m2 * 100) / 100;
+    if (r.Loyer != null) p.loyer_m2 = Math.round(r.Loyer * 100) / 100;
+    if (Object.keys(p).length) map[k].pieces[bMap[r.piece_bucket] || "T"+r.piece_bucket] = p;
+  }
+  return { villes: Object.values(map).sort((a, b) => a.nom.localeCompare(b.nom)) };
+}
+
+// ===================================================================
+// RENDER RESULTS
+// ===================================================================
+function renderResults() {
+  renderGlobal(); renderDept(); renderCommune(); renderLoyer();
+}
+
+function renderGlobal() {
+  const communes = [...new Set(STATS.map(d => d.nom_commune))];
+  const depts = [...new Set(STATS.map(d => d.code_departement))];
+  const totalMut = STATS.reduce((s, d) => s + (d.n_mut||0), 0);
+  const prices = STATS.filter(d => d.ref_m2 != null);
+  const avgP = prices.length ? prices.reduce((s,d)=>s+d.ref_m2,0)/prices.length : 0;
+  const loyers = STATS.filter(d => d.Loyer != null);
+  const avgL = loyers.length ? loyers.reduce((s,d)=>s+d.Loyer,0)/loyers.length : 0;
+
+  document.getElementById("globalCards").innerHTML = `
+    <div class="card"><div class="label">Departements</div><div class="value">${depts.length}</div></div>
+    <div class="card"><div class="label">Communes</div><div class="value">${communes.length}</div></div>
+    <div class="card"><div class="label">Mutations</div><div class="value">${totalMut.toLocaleString("fr")}</div></div>
+    <div class="card"><div class="label">Prix moy. /m2</div><div class="value">${fmt(avgP)}</div></div>
+    <div class="card"><div class="label">Loyer moy. /m2</div><div class="value">${avgL>0?avgL.toFixed(1)+" EUR":"N/A"}</div></div>`;
+
+  const top = [...STATS].filter(d=>d.ref_m2).sort((a,b)=>b.ref_m2-a.ref_m2).slice(0,10);
+  document.querySelector("#topTable thead").innerHTML = "<tr><th>Commune</th><th>T</th><th class='num'>Prix/m2</th><th class='num'>P25</th><th class='num'>P75</th><th class='num'>Loyer</th><th class='num'>Mut.</th></tr>";
+  document.querySelector("#topTable tbody").innerHTML = top.map(d => `<tr><td>${d.nom_commune}</td><td>${d.piece_bucket}p</td><td class="num hl">${fmt(d.ref_m2)}</td><td class="num">${fmt(d.p25)}</td><td class="num">${fmt(d.p75)}</td><td class="num">${d.Loyer?d.Loyer.toFixed(1):"-"}</td><td class="num">${d.n_mut}</td></tr>`).join("");
+}
+
+function renderDept(filter) {
+  const g = {};
+  STATS.forEach(d => { if(!g[d.code_departement])g[d.code_departement]=[]; g[d.code_departement].push(d); });
+  let depts = Object.entries(g).map(([k,rows]) => {
+    const pr = rows.filter(r=>r.ref_m2!=null), lo = rows.filter(r=>r.Loyer!=null);
+    return { d:k, communes:[...new Set(rows.map(r=>r.nom_commune))].length, mut:rows.reduce((s,r)=>s+(r.n_mut||0),0),
+      avgP:pr.length?pr.reduce((s,r)=>s+r.ref_m2,0)/pr.length:null, minP:pr.length?Math.min(...pr.map(r=>r.ref_m2)):null, maxP:pr.length?Math.max(...pr.map(r=>r.ref_m2)):null,
+      avgL:lo.length?lo.reduce((s,r)=>s+r.Loyer,0)/lo.length:null };
+  }).sort((a,b)=>a.d.localeCompare(b.d));
+  if(filter){ const f=filter.toLowerCase(); depts=depts.filter(d=>d.d.includes(f)); }
+  document.getElementById("deptGrid").innerHTML = depts.map(d=>`<div class="dept-card"><h3>Dept ${d.d}</h3>
+    <div class="row"><span class="lbl">Communes</span><span>${d.communes}</span></div>
+    <div class="row"><span class="lbl">Mutations</span><span>${d.mut.toLocaleString("fr")}</span></div>
+    <div class="row"><span class="lbl">Prix moy.</span><span style="color:#00d4aa">${fmt(d.avgP)}</span></div>
+    <div class="row"><span class="lbl">Min</span><span>${fmt(d.minP)}</span></div>
+    <div class="row"><span class="lbl">Max</span><span>${fmt(d.maxP)}</span></div>
+    <div class="row"><span class="lbl">Loyer moy.</span><span>${d.avgL?d.avgL.toFixed(1)+" EUR":"-"}</span></div></div>`).join("");
+}
+document.getElementById("deptSearch").addEventListener("input", e => renderDept(e.target.value));
+
+function renderCommune(filter) {
+  let rows = [...STATS];
+  if(filter){ const f=filter.toLowerCase(); rows=rows.filter(d=>d.nom_commune.toLowerCase().includes(f)); }
+  if(sortCol) rows.sort((a,b)=>{ let va=a[sortCol],vb=b[sortCol]; if(va==null)return 1;if(vb==null)return -1; return typeof va==="string"?(sortAsc?va.localeCompare(vb):vb.localeCompare(va)):(sortAsc?va-vb:vb-va); });
+  const cols=[{k:"nom_commune",l:"Commune"},{k:"piece_bucket",l:"T"},{k:"ref_m2",l:"Prix/m2",n:1},{k:"mean_w",l:"Moyenne",n:1},{k:"p25",l:"P25",n:1},{k:"p75",l:"P75",n:1},{k:"mad_w",l:"MAD",n:1},{k:"n_mut",l:"Mut.",n:1},{k:"n_eff",l:"N eff.",n:1},{k:"surf_med",l:"Surf.",n:1},{k:"age_med_j",l:"Age",n:1},{k:"Loyer",l:"Loyer",n:1}];
+  const arrow = k => sortCol===k?(sortAsc?" ▲":" ▼"):"";
+  document.querySelector("#communeTable thead").innerHTML = "<tr>" + cols.map(c=>`<th class="${c.n?'num':''}" onclick="doSort('${c.k}')">${c.l}${arrow(c.k)}</th>`).join("")+"</tr>";
+  document.querySelector("#communeTable tbody").innerHTML = rows.map(d=>`<tr><td>${d.nom_commune}</td><td>${d.piece_bucket}p</td><td class="num hl">${fmt(d.ref_m2)}</td><td class="num">${fmt(d.mean_w)}</td><td class="num">${fmt(d.p25)}</td><td class="num">${fmt(d.p75)}</td><td class="num">${fmt(d.mad_w)}</td><td class="num">${d.n_mut||"-"}</td><td class="num">${d.n_eff?d.n_eff.toFixed(1):"-"}</td><td class="num">${d.surf_med?d.surf_med.toFixed(0):"-"}</td><td class="num">${d.age_med_j||"-"}</td><td class="num">${d.Loyer?d.Loyer.toFixed(1):"-"}</td></tr>`).join("");
+}
+window.doSort = k => { if(sortCol===k)sortAsc=!sortAsc;else{sortCol=k;sortAsc=true;} renderCommune(document.getElementById("communeSearch").value); };
+document.getElementById("communeSearch").addEventListener("input", e => renderCommune(e.target.value));
+
+function renderLoyer(filter) {
+  const wl = STATS.filter(d=>d.Loyer!=null&&d.piece_bucket==="2");
+  if(!wl.length){document.getElementById("loyerCards").innerHTML='<div class="card"><div class="label">Aucun loyer</div><div class="value">-</div></div>';return;}
+  const avgL=wl.reduce((s,d)=>s+d.Loyer,0)/wl.length, minL=Math.min(...wl.map(d=>d.Loyer)), maxL=Math.max(...wl.map(d=>d.Loyer));
+  const wb=wl.filter(d=>d.ref_m2>0), avgR=wb.length?wb.reduce((s,d)=>s+d.Loyer*12/d.ref_m2*100,0)/wb.length:0;
+  document.getElementById("loyerCards").innerHTML=`<div class="card"><div class="label">Loyer moy.</div><div class="value">${avgL.toFixed(1)} EUR</div><div class="sub">2 pieces</div></div>
+    <div class="card"><div class="label">Min</div><div class="value">${minL.toFixed(1)} EUR</div></div>
+    <div class="card"><div class="label">Max</div><div class="value">${maxL.toFixed(1)} EUR</div></div>
+    <div class="card"><div class="label">Rendement brut</div><div class="value">${avgR.toFixed(2)}%</div></div>`;
+  let cs={}; wl.forEach(d=>{if(!cs[d.nom_commune])cs[d.nom_commune]={l:d.Loyer,p:d.ref_m2};});
+  let list=Object.entries(cs).map(([n,v])=>({n,...v}));
+  if(filter){const f=filter.toLowerCase();list=list.filter(d=>d.n.toLowerCase().includes(f));}
+  list.sort((a,b)=>b.l-a.l);
+  document.getElementById("loyerBars").innerHTML=list.map(d=>{const pct=maxL>0?d.l/maxL*100:0;const r=d.p>0?(d.l*12/d.p*100).toFixed(2):"-";
+    return `<div class="loyer-bar"><span class="cname" title="${d.n}">${d.n}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="lval">${d.l.toFixed(1)}</span><span style="width:55px;text-align:right;color:#888;font-size:.72rem">${r}%</span></div>`;}).join("");
+}
+document.getElementById("loyerSearch").addEventListener("input", e => renderLoyer(e.target.value));
+
+// ===================================================================
+// EXTRACT JSON
+// ===================================================================
+function renderExtract() {
+  if (!VILLES_JSON) return;
+  const js = JSON.stringify(VILLES_JSON, null, 4);
+  document.getElementById("exVilles").textContent = VILLES_JSON.villes.length;
+  document.getElementById("exDepts").textContent = [...new Set(VILLES_JSON.villes.map(v=>v.departement))].sort().join(", ");
+  document.getElementById("jsonPreview").textContent = js;
+}
+
+document.getElementById("btnDlJson").addEventListener("click", () => {
+  const js = JSON.stringify(VILLES_JSON, null, 4);
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([js],{type:"application/json"})); a.download = "villes_data.json"; a.click();
+  exMsg("Telecharge", true);
+});
+
+document.getElementById("btnCopyJson").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(JSON.stringify(VILLES_JSON, null, 4)); exMsg("Copie !", true); } catch(e) { exMsg("Erreur: "+e.message, false); }
+});
+
+document.getElementById("btnPushDVF").addEventListener("click", () => pushJson(REPO, "output/villes_data.json"));
+document.getElementById("btnPushOther").addEventListener("click", () => {
+  const p = document.getElementById("pushPath").value.trim();
+  if(!p){exMsg("Entrer: owner/repo/contents/path/file.json",false);return;}
+  const pts=p.split("/"); if(pts.length<4){exMsg("Format: owner/repo/contents/path/file.json",false);return;}
+  pushJson(pts[0]+"/"+pts[1], pts.slice(2).join("/").replace(/^contents\//,""));
+});
+
+async function pushJson(repo, path) {
+  const js = JSON.stringify(VILLES_JSON, null, 4);
+  exMsg("Push...", true);
+  try {
+    let sha=null;
+    try{const r=await fetch(`${WORKER_URL}/github/${repo}/contents/${path}?ref=main`);if(r.ok){sha=(await r.json()).sha;}}catch(e){}
+    const body={message:"data: update villes_data.json",content:btoa(unescape(encodeURIComponent(js))),branch:"main"};
+    if(sha)body.sha=sha;
+    const r=await fetch(`${WORKER_URL}/github/${repo}/contents/${path}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(r.ok)exMsg(`OK: ${repo}/${path}`,true); else{const e=await r.json().catch(()=>({}));throw new Error(e.message||"HTTP "+r.status);}
+  }catch(e){exMsg("Erreur: "+e.message,false);}
+}
+
+function exMsg(m,ok){const el=document.getElementById("exStatus");el.style.display="block";el.style.color=ok?"#00d4aa":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
+
+// ===================================================================
+// HELPERS
+// ===================================================================
+function fmt(v) { return v != null ? Math.round(v).toLocaleString("fr") + " EUR" : "-"; }
+
+// ===================================================================
+// INIT
+// ===================================================================
+loadGhFiles();
+</script>
 </body>
 </html>
