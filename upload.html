@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DVF — Upload Data</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e1a; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
+    h1 { text-align: center; margin-bottom: .5rem; color: #00d4aa; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 2rem; font-size: .9rem; }
+
+    .config { max-width: 600px; margin: 0 auto 1.5rem; display: flex; gap: .5rem; align-items: center; }
+    .config label { color: #aaa; font-size: .85rem; white-space: nowrap; }
+    .config input { flex: 1; background: #161b2e; border: 1px solid #2a3050; color: #e0e0e0; padding: .5rem .75rem; border-radius: 6px; font-size: .85rem; }
+
+    .drop-zone {
+      max-width: 600px; margin: 0 auto 1.5rem; border: 2px dashed #2a3050; border-radius: 12px;
+      padding: 3rem 2rem; text-align: center; cursor: pointer; transition: all .2s;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: #00d4aa; background: rgba(0,212,170,.05); }
+    .drop-zone p { color: #888; margin-bottom: .5rem; }
+    .drop-zone .hint { font-size: .8rem; color: #555; }
+
+    .file-list { max-width: 600px; margin: 0 auto 1.5rem; }
+    .file-item {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #161b2e; border: 1px solid #2a3050; border-radius: 8px;
+      padding: .6rem 1rem; margin-bottom: .5rem; font-size: .85rem;
+    }
+    .file-item .name { flex: 1; }
+    .file-item .size { color: #888; margin: 0 1rem; }
+    .file-item .status { width: 80px; text-align: right; }
+    .file-item .status.ok { color: #00d4aa; }
+    .file-item .status.err { color: #ff4444; }
+    .file-item .status.wait { color: #888; }
+    .file-item .status.uploading { color: #ffaa00; }
+    .file-item .remove { cursor: pointer; color: #ff4444; margin-left: .5rem; font-size: 1.1rem; }
+
+    .actions { max-width: 600px; margin: 0 auto; display: flex; gap: 1rem; }
+    .btn {
+      flex: 1; padding: .75rem; border: none; border-radius: 8px; font-size: .9rem;
+      cursor: pointer; font-weight: 600; transition: all .2s;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-push { background: #00d4aa; color: #0a0e1a; }
+    .btn-push:hover:not(:disabled) { background: #00f0c0; }
+    .btn-clear { background: #2a3050; color: #e0e0e0; }
+    .btn-clear:hover:not(:disabled) { background: #3a4060; }
+
+    .log { max-width: 600px; margin: 1.5rem auto 0; background: #0d1117; border: 1px solid #2a3050; border-radius: 8px; padding: 1rem; font-family: monospace; font-size: .8rem; max-height: 200px; overflow-y: auto; }
+    .log .line { margin-bottom: .25rem; }
+    .log .line.ok { color: #00d4aa; }
+    .log .line.err { color: #ff4444; }
+    .log .line.info { color: #888; }
+  </style>
+</head>
+<body>
+  <h1>DVF Upload</h1>
+  <p class="subtitle">Glisser les CSV (Capital_XX.csv, loyer_*.csv) pour les pousser sur GitHub</p>
+
+  <div class="config">
+    <label>Worker URL:</label>
+    <input id="workerUrl" type="text" placeholder="https://your-worker.workers.dev" />
+  </div>
+
+  <div class="drop-zone" id="dropZone">
+    <p>Glisser-déposer vos fichiers CSV ici</p>
+    <p class="hint">ou cliquer pour sélectionner</p>
+    <input type="file" id="fileInput" multiple accept=".csv" style="display:none" />
+  </div>
+
+  <div class="file-list" id="fileList"></div>
+
+  <div class="actions">
+    <button class="btn btn-clear" id="btnClear" disabled>Vider</button>
+    <button class="btn btn-push" id="btnPush" disabled>Push sur GitHub</button>
+  </div>
+
+  <div class="log" id="log" style="display:none"></div>
+
+  <script>
+    const REPO = "Bencode92/DVFMAJ";
+    const BRANCH = "main";
+    const DATA_PATH = "data";
+
+    let files = new Map(); // name -> { file, status }
+
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("fileInput");
+    const fileList = document.getElementById("fileList");
+    const btnPush = document.getElementById("btnPush");
+    const btnClear = document.getElementById("btnClear");
+    const logEl = document.getElementById("log");
+    const workerUrlInput = document.getElementById("workerUrl");
+
+    // Restore saved worker URL
+    workerUrlInput.value = localStorage.getItem("dvf_worker_url") || "";
+    workerUrlInput.addEventListener("input", () => {
+      localStorage.setItem("dvf_worker_url", workerUrlInput.value.trim());
+    });
+
+    // Drop zone events
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+    dropZone.addEventListener("drop", e => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      addFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener("change", () => { addFiles(fileInput.files); fileInput.value = ""; });
+
+    function addFiles(fileListInput) {
+      for (const f of fileListInput) {
+        if (!f.name.endsWith(".csv")) { log(`Ignoré (pas CSV): ${f.name}`, "err"); continue; }
+        files.set(f.name, { file: f, status: "wait" });
+      }
+      renderFiles();
+    }
+
+    function renderFiles() {
+      fileList.innerHTML = "";
+      for (const [name, data] of files) {
+        const sizeMB = (data.file.size / 1024 / 1024).toFixed(1);
+        const statusLabel = { wait: "En attente", uploading: "Upload...", ok: "OK", err: "Erreur" }[data.status];
+        fileList.innerHTML += `
+          <div class="file-item">
+            <span class="name">${name}</span>
+            <span class="size">${sizeMB} Mo</span>
+            <span class="status ${data.status}">${statusLabel}</span>
+            <span class="remove" onclick="removeFile('${name}')">&times;</span>
+          </div>`;
+      }
+      btnPush.disabled = files.size === 0;
+      btnClear.disabled = files.size === 0;
+    }
+
+    window.removeFile = (name) => { files.delete(name); renderFiles(); };
+
+    btnClear.addEventListener("click", () => { files.clear(); renderFiles(); });
+
+    // ===== Push to GitHub via Worker =====
+    btnPush.addEventListener("click", async () => {
+      const workerUrl = workerUrlInput.value.trim().replace(/\/$/, "");
+      if (!workerUrl) { alert("Entrer l'URL du Worker"); return; }
+
+      btnPush.disabled = true;
+      logEl.style.display = "block";
+      logEl.innerHTML = "";
+      log("Début du push...", "info");
+
+      let success = 0, errors = 0;
+
+      for (const [name, data] of files) {
+        if (data.status === "ok") { success++; continue; }
+
+        data.status = "uploading";
+        renderFiles();
+
+        try {
+          const ghPath = `${DATA_PATH}/${name}`;
+          log(`${name}: lecture...`, "info");
+
+          // 1) Check if file exists (get SHA)
+          let sha = null;
+          try {
+            const checkUrl = `${workerUrl}/github/${REPO}/contents/${ghPath}?ref=${BRANCH}`;
+            const checkResp = await fetch(checkUrl);
+            if (checkResp.ok) {
+              const checkData = await checkResp.json();
+              sha = checkData.sha;
+              log(`${name}: fichier existant (sha: ${sha.substring(0, 7)}), mise à jour...`, "info");
+            } else {
+              log(`${name}: nouveau fichier`, "info");
+            }
+          } catch (e) { /* file doesn't exist yet */ }
+
+          // 2) Read file as base64
+          const content = await readFileAsBase64(data.file);
+
+          // 3) PUT to GitHub
+          const putUrl = `${workerUrl}/github/${REPO}/contents/${ghPath}`;
+          const body = {
+            message: `data: update ${name}`,
+            content: content,
+            branch: BRANCH,
+          };
+          if (sha) body.sha = sha;
+
+          const putResp = await fetch(putUrl, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+
+          if (putResp.ok) {
+            data.status = "ok";
+            success++;
+            log(`${name}: OK`, "ok");
+          } else {
+            const errData = await putResp.json().catch(() => ({}));
+            throw new Error(errData.message || `HTTP ${putResp.status}`);
+          }
+        } catch (e) {
+          data.status = "err";
+          errors++;
+          log(`${name}: ERREUR — ${e.message}`, "err");
+        }
+        renderFiles();
+      }
+
+      log(`Terminé: ${success} OK, ${errors} erreurs`, success > 0 && errors === 0 ? "ok" : "err");
+      btnPush.disabled = false;
+    });
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          // result is "data:...;base64,XXXX", we want just XXXX
+          const base64 = reader.result.split(",")[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function log(msg, cls = "info") {
+      logEl.innerHTML += `<div class="line ${cls}">${new Date().toLocaleTimeString()} — ${msg}</div>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+  </script>
+</body>
+</html>
