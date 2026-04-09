@@ -66,6 +66,15 @@
     .loyer-bar .commune-name { width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .loyer-bar .loyer-val { width: 70px; text-align: right; color: #00d4aa; font-weight: 600; }
 
+    /* EXTRACT */
+    .extract-btn {
+      padding: .6rem 1.2rem; border: none; border-radius: 8px; font-size: .85rem;
+      cursor: pointer; font-weight: 600; background: #2a3050; color: #e0e0e0; transition: all .2s;
+    }
+    .extract-btn:hover { background: #3a4060; }
+    .extract-btn.push { background: #00d4aa; color: #0a0e1a; }
+    .extract-btn.push:hover { background: #00f0c0; }
+
     .loading { text-align: center; padding: 3rem; color: #555; }
     .error-msg { text-align: center; padding: 2rem; color: #ff4444; }
   </style>
@@ -85,6 +94,7 @@
       <div class="tab" data-tab="dept">Par Departement</div>
       <div class="tab" data-tab="commune">Par Commune</div>
       <div class="tab" data-tab="loyer">Loyers</div>
+      <div class="tab" data-tab="extract">Extract JSON</div>
     </div>
 
     <!-- GLOBAL -->
@@ -116,10 +126,36 @@
       <div class="search-bar"><input id="loyerSearch" placeholder="Rechercher une commune..." /></div>
       <div id="loyerBars" style="max-height:60vh;overflow-y:auto"></div>
     </div>
+    <!-- EXTRACT JSON -->
+    <div class="tab-content" id="tab-extract">
+      <div class="cards">
+        <div class="card"><div class="label">Villes detectees</div><div class="value" id="extractCount">-</div></div>
+        <div class="card"><div class="label">Departements</div><div class="value" id="extractDepts">-</div></div>
+      </div>
+
+      <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <button class="extract-btn" id="btnDownloadJson">Telecharger villes_data.json</button>
+        <button class="extract-btn" id="btnCopyJson">Copier dans le presse-papier</button>
+        <button class="extract-btn push" id="btnPushJson">Push sur GitHub (DVFMAJ)</button>
+        <div style="display:flex;align-items:center;gap:.5rem;flex:1;min-width:250px">
+          <label style="color:#888;font-size:.8rem;white-space:nowrap">Push vers autre repo :</label>
+          <input id="pushRepoPath" type="text" placeholder="Bencode92/studyforge/contents/data/villes_data.json" style="flex:1;background:#161b2e;border:1px solid #2a3050;color:#e0e0e0;padding:.5rem .75rem;border-radius:6px;font-size:.8rem" />
+          <button class="extract-btn push" id="btnPushOther">Push</button>
+        </div>
+      </div>
+
+      <div id="extractStatus" style="font-size:.85rem;margin-bottom:1rem;display:none"></div>
+
+      <div style="position:relative">
+        <div style="position:absolute;top:.5rem;right:.5rem;font-size:.75rem;color:#555">villes_data.json</div>
+        <pre id="jsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:50vh;overflow:auto;font-size:.75rem;color:#aaa;white-space:pre;tab-size:4"></pre>
+      </div>
+    </div>
   </div>
 
   <script>
     // ===== CONFIG =====
+    const WORKER_URL = "https://studyforge-proxy.benoit-comas.workers.dev";
     const RAW_BASE = "https://raw.githubusercontent.com/Bencode92/DVFMAJ/main";
     const CSV_URL = RAW_BASE + "/output/resultats.csv";
 
@@ -172,6 +208,7 @@
       renderDept();
       renderCommune();
       renderLoyer();
+      renderExtract();
     }
 
     // ===== GLOBAL =====
@@ -365,6 +402,137 @@
     }
 
     document.getElementById("loyerSearch").addEventListener("input", e => renderLoyer(e.target.value));
+
+    // ===== EXTRACT JSON =====
+    function normalizeText(s) {
+      if (!s) return s;
+      return s.toUpperCase().trim()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/AE/g, "AE").replace(/OE/g, "OE")
+        .replace(/[\s\-']+/g, " ").trim();
+    }
+
+    function buildVillesJson() {
+      const bucketMap = { "1": "T1", "2": "T2", "3": "T3", "4": "T4", "5": "T5" };
+      const villes = {};
+
+      DATA.forEach(d => {
+        const nom = normalizeText(d.nom_commune);
+        const dept = d.code_departement;
+        const key = nom + "|" + dept;
+
+        if (!villes[key]) villes[key] = { nom, departement: dept, pieces: {} };
+
+        const tKey = bucketMap[d.piece_bucket] || ("T" + d.piece_bucket);
+        const piece = {};
+        if (d.ref_m2 != null) piece.prix_m2 = Math.round(d.ref_m2 * 100) / 100;
+        if (d.Loyer != null) piece.loyer_m2 = Math.round(d.Loyer * 100) / 100;
+        if (Object.keys(piece).length > 0) villes[key].pieces[tKey] = piece;
+      });
+
+      const sorted = Object.values(villes).sort((a, b) => a.nom.localeCompare(b.nom));
+      return { villes: sorted };
+    }
+
+    function renderExtract() {
+      const json = buildVillesJson();
+      const jsonStr = JSON.stringify(json, null, 4);
+      const depts = [...new Set(json.villes.map(v => v.departement))];
+
+      document.getElementById("extractCount").textContent = json.villes.length;
+      document.getElementById("extractDepts").textContent = depts.sort().join(", ");
+      document.getElementById("jsonPreview").textContent = jsonStr;
+
+      return jsonStr;
+    }
+
+    function showExtractStatus(msg, ok) {
+      const el = document.getElementById("extractStatus");
+      el.style.display = "block";
+      el.style.color = ok ? "#00d4aa" : "#ff4444";
+      el.textContent = msg;
+      setTimeout(() => { el.style.display = "none"; }, 4000);
+    }
+
+    // Download
+    document.getElementById("btnDownloadJson").addEventListener("click", () => {
+      const jsonStr = renderExtract();
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "villes_data.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showExtractStatus("Fichier telecharge", true);
+    });
+
+    // Copy
+    document.getElementById("btnCopyJson").addEventListener("click", async () => {
+      const jsonStr = renderExtract();
+      try {
+        await navigator.clipboard.writeText(jsonStr);
+        showExtractStatus("Copie dans le presse-papier !", true);
+      } catch (e) {
+        showExtractStatus("Erreur copie: " + e.message, false);
+      }
+    });
+
+    // Push to DVFMAJ
+    document.getElementById("btnPushJson").addEventListener("click", () => {
+      pushJsonToGithub("Bencode92/DVFMAJ", "output/villes_data.json");
+    });
+
+    // Push to other repo
+    document.getElementById("btnPushOther").addEventListener("click", () => {
+      const input = document.getElementById("pushRepoPath").value.trim();
+      if (!input) { showExtractStatus("Entrer le chemin: owner/repo/contents/path/file.json", false); return; }
+      // Parse: Bencode92/studyforge/contents/data/villes_data.json
+      const parts = input.split("/");
+      if (parts.length < 4) { showExtractStatus("Format: owner/repo/contents/path/to/file.json", false); return; }
+      const owner = parts[0];
+      const repo = parts[1];
+      const filePath = parts.slice(2).join("/").replace(/^contents\//, "");
+      pushJsonToGithub(owner + "/" + repo, filePath);
+    });
+
+    async function pushJsonToGithub(repo, filePath) {
+      const jsonStr = renderExtract();
+      showExtractStatus("Push en cours...", true);
+
+      try {
+        // Check if file exists
+        let sha = null;
+        try {
+          const checkResp = await fetch(`${WORKER_URL}/github/${repo}/contents/${filePath}?ref=main`);
+          if (checkResp.ok) {
+            const checkData = await checkResp.json();
+            sha = checkData.sha;
+          }
+        } catch (e) { /* new file */ }
+
+        const body = {
+          message: "data: update villes_data.json",
+          content: btoa(unescape(encodeURIComponent(jsonStr))),
+          branch: "main",
+        };
+        if (sha) body.sha = sha;
+
+        const putResp = await fetch(`${WORKER_URL}/github/${repo}/contents/${filePath}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        if (putResp.ok) {
+          showExtractStatus(`Push OK vers ${repo}/${filePath}`, true);
+        } else {
+          const err = await putResp.json().catch(() => ({}));
+          throw new Error(err.message || "HTTP " + putResp.status);
+        }
+      } catch (e) {
+        showExtractStatus("Erreur push: " + e.message, false);
+      }
+    }
 
     // ===== HELPERS =====
     function fmt(v) { return v != null ? Math.round(v).toLocaleString("fr") + " EUR" : "-"; }
