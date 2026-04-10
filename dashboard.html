@@ -232,12 +232,14 @@
         Lancer d'abord une analyse dans l'onglet "Donnees".
       </div>
       <div id="extractContent" style="display:none">
+        <!-- RÉSIDENTIEL -->
+        <h3 style="color:#00d4aa;font-size:.95rem;margin-bottom:.75rem">Résidentiel — villes_data.json</h3>
         <div class="cards">
           <div class="card"><div class="label">Villes</div><div class="value" id="exVilles">-</div></div>
           <div class="card"><div class="label">Departements</div><div class="value" id="exDepts">-</div></div>
         </div>
         <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
-          <button class="extract-btn" id="btnDlJson">Telecharger villes_data.json</button>
+          <button class="extract-btn" id="btnDlJson">Telecharger</button>
           <button class="extract-btn" id="btnCopyJson">Copier</button>
           <button class="extract-btn push" id="btnPushDVF">Push DVFMAJ</button>
           <div style="display:flex;align-items:center;gap:.4rem;flex:1;min-width:250px">
@@ -246,7 +248,25 @@
           </div>
         </div>
         <div id="exStatus" style="font-size:.82rem;margin-bottom:.75rem;display:none"></div>
-        <pre id="jsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:50vh;overflow:auto;font-size:.72rem;color:#aaa"></pre>
+        <pre id="jsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#aaa"></pre>
+
+        <!-- COMMERCIAL -->
+        <h3 style="color:#ffaa00;font-size:.95rem;margin:1.5rem 0 .75rem">Commercial — commercial_data.json</h3>
+        <div class="cards">
+          <div class="card"><div class="label">Communes</div><div class="value" id="exCommComm">-</div></div>
+          <div class="card"><div class="label">Segments</div><div class="value" id="exCommSeg">S1-S4</div><div class="sub">Boutique | Local | Plateau | Immeuble</div></div>
+        </div>
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+          <button class="extract-btn" id="btnDlCommJson">Telecharger</button>
+          <button class="extract-btn" id="btnCopyCommJson">Copier</button>
+          <button class="extract-btn push" id="btnPushCommDVF">Push DVFMAJ</button>
+          <div style="display:flex;align-items:center;gap:.4rem;flex:1;min-width:250px">
+            <input id="pushCommPath" type="text" placeholder="Bencode92/studyforge/contents/data/commercial_data.json" style="flex:1;background:#161b2e;border:1px solid #2a3050;color:#e0e0e0;padding:.45rem .6rem;border-radius:6px;font-size:.8rem" />
+            <button class="extract-btn push" id="btnPushCommOther">Push</button>
+          </div>
+        </div>
+        <div id="exCommStatus" style="font-size:.82rem;margin-bottom:.75rem;display:none"></div>
+        <pre id="commJsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#ffaa00"></pre>
       </div>
     </div>
   </div>
@@ -296,7 +316,16 @@ const VALID_PAT = [/^Capital_\d{2,3}[A-B]?\.csv$/i, /^loyer_1ou2p\.csv$/i, /^loy
 let uploadFiles = new Map();
 let STATS = []; // final analytics results
 let VILLES_JSON = null;
+let COMMERCIAL_JSON = null;
 let sortCol = null, sortAsc = true;
+
+// Commercial surface buckets
+const COMM_BUCKETS = [
+  { id: "S1", label: "Boutique", min: 9, max: 50 },
+  { id: "S2", label: "Local", min: 50, max: 150 },
+  { id: "S3", label: "Plateau", min: 150, max: 500 },
+  { id: "S4", label: "Immeuble", min: 500, max: 999999 },
+];
 
 // ===================================================================
 // TABS
@@ -512,28 +541,39 @@ async function runAnalysis() {
       }
     } catch(e) { console.warn("Loyers non charges:", e.message); }
 
-    // 3) Transform
-    setProgress(80, "Filtrage et agregation des mutations...");
+    // 3) Transform résidentiel
+    setProgress(80, "Résidentiel: filtrage et agregation...");
     await sleep(10);
     const venteData = transformPipeline(allRows);
-    setProgress(88, `${venteData.length.toLocaleString("fr")} mutations apres trimming. Stats...`);
+
+    // 4) Transform commercial
+    setProgress(84, "Commercial: filtrage et agregation...");
+    await sleep(10);
+    const commData = transformCommercialPipeline(allRows);
+
+    setProgress(88, `Résidentiel: ${venteData.length.toLocaleString("fr")} | Commercial: ${commData.length.toLocaleString("fr")}. Stats...`);
     await sleep(10);
 
-    // 4) Analytics
+    // 5) Analytics résidentiel
     STATS = analyticsPipeline(venteData, loyerRows12, loyerRows3p);
+
+    // 6) Analytics commercial
+    const COMM_STATS = commercialAnalyticsPipeline(commData);
+
     setProgress(95, "Generation JSON...");
     await sleep(10);
 
-    // 5) Build JSON
+    // 7) Build JSONs
     VILLES_JSON = buildVillesJson(STATS);
+    COMMERCIAL_JSON = buildCommercialJson(COMM_STATS);
 
-    // Stats matching loyers
     const withLoyer = STATS.filter(s => s.Loyer != null).length;
     const totalStats = STATS.length;
     const loyerPct = totalStats > 0 ? Math.round(withLoyer * 100 / totalStats) : 0;
-    console.log(`Loyers: ${withLoyer}/${totalStats} (${loyerPct}%) lignes avec loyer`);
-    setProgress(100, `Termine: ${STATS.length} lignes, ${VILLES_JSON.villes.length} villes, loyers: ${loyerPct}%`);
-    document.getElementById("dataStatus").textContent = `${STATS.length} lignes | ${VILLES_JSON.villes.length} villes | dept: ${depts.join(", ")}`;
+    console.log(`Loyers: ${withLoyer}/${totalStats} (${loyerPct}%)`);
+    console.log(`Commercial: ${COMMERCIAL_JSON.locaux.length} communes`);
+    setProgress(100, `Résidentiel: ${VILLES_JSON.villes.length} villes | Commercial: ${COMMERCIAL_JSON.locaux.length} communes`);
+    document.getElementById("dataStatus").textContent = `Rési: ${VILLES_JSON.villes.length} villes | Comm: ${COMMERCIAL_JSON.locaux.length} communes | dept: ${depts.join(", ")}`;
 
     // Show results
     document.getElementById("noResults").style.display = "none";
@@ -975,6 +1015,130 @@ function analyticsPipeline(vente, loyer12, loyer3p) {
 }
 
 // ===================================================================
+// COMMERCIAL PIPELINE — simple et propre, pas de beta, pas de décote
+// ===================================================================
+function transformCommercialPipeline(rawRows) {
+  const asOf = AS_OF.getTime();
+
+  // 1) Filtre : Vente, type = Local commercial, date valide
+  const filtered = rawRows.filter(r =>
+    r.nature === "Vente" && r.type.indexOf("ocal") >= 0 &&
+    r.surf >= 9 && r.date !== "" && new Date(r.date).getTime() <= asOf
+  );
+
+  // 2) Agrégation par mutation (single-lot uniquement)
+  const groups = new Map();
+  for (const r of filtered) {
+    let g = groups.get(r.id);
+    if (!g) { g = { n:0, vf:r.vf, surf:0, date:r.date, commune:r.commune, dept:r.dept, codeC:r.codeC }; groups.set(r.id, g); }
+    g.n++; g.surf += r.surf;
+    if (r.vf > 0) g.vf = r.vf;
+    if (r.date > g.date) g.date = r.date;
+    if (r.commune) g.commune = r.commune;
+    if (r.dept) g.dept = r.dept;
+    if (r.codeC) g.codeC = r.codeC;
+  }
+
+  // 3) Single-lot, surface >= 9, prix valide
+  const muts = [];
+  for (const [, g] of groups) {
+    if (g.n !== 1 || g.surf < 9) continue;
+    const pm2 = g.vf / g.surf;
+    if (pm2 < 500 || pm2 > 30000) continue; // exclure aberrations
+    const dt = new Date(g.date);
+    const ageDays = Math.round((AS_OF - dt) / 86400000);
+    const tw = ageDays < 0 ? 1.0 : Math.pow(0.5, ageDays / HALF_LIFE_DAYS);
+    // Bucket surface
+    let bucket = null;
+    for (const b of COMM_BUCKETS) { if (g.surf >= b.min && g.surf < b.max) { bucket = b.id; break; } }
+    if (!bucket) continue;
+    muts.push({ dept:g.dept, codeC:g.codeC, commune:g.commune, bucket, pm2, surf:g.surf, ageDays, tw, w:tw>0?tw:1.0 });
+  }
+
+  // 4) Trimming MAD par (dept × bucket)
+  const gk = r => r.dept + "|" + r.bucket;
+  const grouped = new Map();
+  for (const r of muts) { const k=gk(r); if(!grouped.has(k))grouped.set(k,[]); grouped.get(k).push(r); }
+
+  const kept = [];
+  for (const [, grp] of grouped) {
+    const sorted = grp.map(r=>[r.pm2,r.w]).sort((a,b)=>a[0]-b[0]);
+    const sv=sorted.map(s=>s[0]), sw=sorted.map(s=>s[1]);
+    const tot = sw.reduce((s,w)=>s+w,0);
+    if (tot<=0) { kept.push(...grp); continue; }
+    let cum=0, med=sv[sv.length-1];
+    for (let i=0;i<sv.length;i++){cum+=sw[i];if(cum>=0.5*tot){med=sv[i];break;}}
+    const devs = sv.map((v,i)=>[Math.abs(v-med),sw[i]]).sort((a,b)=>a[0]-b[0]);
+    let dc=0, rm=devs[devs.length-1][0];
+    const dt2=devs.reduce((s,d)=>s+d[1],0);
+    for(let i=0;i<devs.length;i++){dc+=devs[i][1];if(dc>=0.5*dt2){rm=devs[i][0];break;}}
+    const mad=1.4826*rm, limit=mad>0?MAD_THRESHOLD*mad:Infinity;
+    for(const r of grp){if(Math.abs(r.pm2-med)<=limit)kept.push(r);}
+  }
+  return kept;
+}
+
+function commercialAnalyticsPipeline(data) {
+  const qFn = (sv,sw,t,q) => { let c=0; const tgt=q*t; for(let i=0;i<sv.length;i++){c+=sw[i];if(c>=tgt)return sv[i];} return null; };
+  const MIN_COMM = 5; // seuil min commercial (moins de data)
+
+  const groups = new Map();
+  for (const r of data) {
+    const k = r.dept+"|"+r.codeC+"|"+r.commune+"|"+r.bucket;
+    if(!groups.has(k)) groups.set(k,[]);
+    groups.get(k).push(r);
+  }
+
+  const stats = [];
+  for (const [k, rows] of groups) {
+    if (rows.length < MIN_COMM) continue;
+    const [dept, codeC, commune, bucket] = k.split("|");
+    const sorted = rows.map(r=>[r.pm2,r.w]).sort((a,b)=>a[0]-b[0]);
+    const sv=sorted.map(s=>s[0]), sw=sorted.map(s=>s[1]);
+    const tot=sw.reduce((s,w)=>s+w,0);
+    if(tot<=0) continue;
+
+    const med = qFn(sv,sw,tot,0.5);
+    const p25 = qFn(sv,sw,tot,0.25);
+    const p75 = qFn(sv,sw,tot,0.75);
+    const surfMed = weightedMedian(rows.map(r=>r.surf), rows.map(r=>r.w));
+    const w2=sw.reduce((s,w)=>s+w*w,0);
+    const nEff=w2>0?(tot*tot)/w2:0;
+
+    // Fiabilité simplifiée
+    const cv = med>0 ? (p75-p25)/med : 1;
+    let fiabilite = "C";
+    if (nEff>=15 && cv<0.5) fiabilite = "A";
+    else if (nEff>=8 && cv<0.7) fiabilite = "B";
+    if (rows.length >= 30 && fiabilite === "C") fiabilite = "B";
+
+    stats.push({ code_departement:dept, code_commune:codeC, nom_commune:commune,
+      bucket, ref_m2:med, p25, p75, n_mut:rows.length, n_eff:nEff,
+      surf_med:surfMed, fiabilite, source_level:"commune" });
+  }
+
+  stats.sort((a,b) => norm(a.nom_commune).localeCompare(norm(b.nom_commune)) || a.bucket.localeCompare(b.bucket));
+  return stats;
+}
+
+function buildCommercialJson(stats) {
+  const map = {};
+  for (const r of stats) {
+    const nom = norm(r.nom_commune);
+    const k = nom+"|"+r.code_departement;
+    if (!map[k]) map[k] = { nom, departement:r.code_departement, surfaces:{} };
+    const label = COMM_BUCKETS.find(b=>b.id===r.bucket);
+    const p = { prix_m2: Math.round(r.ref_m2*100)/100, fiabilite: r.fiabilite };
+    if (r.p25) p.p25 = Math.round(r.p25*100)/100;
+    if (r.p75) p.p75 = Math.round(r.p75*100)/100;
+    if (r.surf_med) p.surface_mediane = Math.round(r.surf_med);
+    if (r.n_mut) p.nb_transactions = r.n_mut;
+    map[k].surfaces[r.bucket] = p;
+  }
+  return { locaux: Object.values(map).sort((a,b) => a.nom.localeCompare(b.nom)) };
+}
+
+// ===================================================================
 // BUILD VILLES JSON
 // ===================================================================
 function buildVillesJson(stats) {
@@ -1080,11 +1244,15 @@ document.getElementById("loyerSearch").addEventListener("input", e => renderLoye
 // EXTRACT JSON
 // ===================================================================
 function renderExtract() {
-  if (!VILLES_JSON) return;
-  const js = JSON.stringify(VILLES_JSON, null, 4);
-  document.getElementById("exVilles").textContent = VILLES_JSON.villes.length;
-  document.getElementById("exDepts").textContent = [...new Set(VILLES_JSON.villes.map(v=>v.departement))].sort().join(", ");
-  document.getElementById("jsonPreview").textContent = js;
+  if (VILLES_JSON) {
+    document.getElementById("exVilles").textContent = VILLES_JSON.villes.length;
+    document.getElementById("exDepts").textContent = [...new Set(VILLES_JSON.villes.map(v=>v.departement))].sort().join(", ");
+    document.getElementById("jsonPreview").textContent = JSON.stringify(VILLES_JSON, null, 4);
+  }
+  if (COMMERCIAL_JSON) {
+    document.getElementById("exCommComm").textContent = COMMERCIAL_JSON.locaux.length;
+    document.getElementById("commJsonPreview").textContent = JSON.stringify(COMMERCIAL_JSON, null, 4);
+  }
 }
 
 document.getElementById("btnDlJson").addEventListener("click", () => {
@@ -1119,6 +1287,39 @@ async function pushJson(repo, path) {
 }
 
 function exMsg(m,ok){const el=document.getElementById("exStatus");el.style.display="block";el.style.color=ok?"#00d4aa":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
+function exCommMsg(m,ok){const el=document.getElementById("exCommStatus");el.style.display="block";el.style.color=ok?"#ffaa00":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
+
+// Commercial extract
+document.getElementById("btnDlCommJson").addEventListener("click", () => {
+  if(!COMMERCIAL_JSON) return;
+  const js=JSON.stringify(COMMERCIAL_JSON,null,4);
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([js],{type:"application/json"}));a.download="commercial_data.json";a.click();
+  exCommMsg("Telecharge",true);
+});
+document.getElementById("btnCopyCommJson").addEventListener("click", async () => {
+  if(!COMMERCIAL_JSON) return;
+  try{await navigator.clipboard.writeText(JSON.stringify(COMMERCIAL_JSON,null,4));exCommMsg("Copie !",true);}catch(e){exCommMsg("Erreur: "+e.message,false);}
+});
+document.getElementById("btnPushCommDVF").addEventListener("click", () => { if(COMMERCIAL_JSON) pushJson2(REPO,"output/commercial_data.json",COMMERCIAL_JSON,exCommMsg); });
+document.getElementById("btnPushCommOther").addEventListener("click", () => {
+  if(!COMMERCIAL_JSON) return;
+  const p=document.getElementById("pushCommPath").value.trim();
+  if(!p){exCommMsg("Entrer le chemin",false);return;}
+  const pts=p.split("/");if(pts.length<4){exCommMsg("Format: owner/repo/contents/path/file.json",false);return;}
+  pushJson2(pts[0]+"/"+pts[1],pts.slice(2).join("/").replace(/^contents\//,""),COMMERCIAL_JSON,exCommMsg);
+});
+async function pushJson2(repo,path,data,msgFn) {
+  const js=JSON.stringify(data,null,4);
+  msgFn("Push...",true);
+  try{
+    let sha=null;
+    try{const r=await fetch(`${WORKER_URL}/github/${repo}/contents/${path}?ref=main`);if(r.ok){sha=(await r.json()).sha;}}catch(e){}
+    const body={message:"data: update "+path.split("/").pop(),content:btoa(unescape(encodeURIComponent(js))),branch:"main"};
+    if(sha)body.sha=sha;
+    const r=await fetch(`${WORKER_URL}/github/${repo}/contents/${path}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(r.ok)msgFn(`OK: ${repo}/${path}`,true);else{const e=await r.json().catch(()=>({}));throw new Error(e.message||"HTTP "+r.status);}
+  }catch(e){msgFn("Erreur: "+e.message,false);}
+}
 
 // ===================================================================
 // HELPERS
