@@ -512,7 +512,12 @@ async function runAnalysis() {
     // 5) Build JSON
     VILLES_JSON = buildVillesJson(STATS);
 
-    setProgress(100, `Termine: ${STATS.length} lignes, ${VILLES_JSON.villes.length} villes, ${depts.length} dept(s)`);
+    // Stats matching loyers
+    const withLoyer = STATS.filter(s => s.Loyer != null).length;
+    const totalStats = STATS.length;
+    const loyerPct = totalStats > 0 ? Math.round(withLoyer * 100 / totalStats) : 0;
+    console.log(`Loyers: ${withLoyer}/${totalStats} (${loyerPct}%) lignes avec loyer`);
+    setProgress(100, `Termine: ${STATS.length} lignes, ${VILLES_JSON.villes.length} villes, loyers: ${loyerPct}%`);
     document.getElementById("dataStatus").textContent = `${STATS.length} lignes | ${VILLES_JSON.villes.length} villes | dept: ${depts.join(", ")}`;
 
     // Show results
@@ -576,7 +581,9 @@ function parseLoyerCSV(text) {
     const v = lines[i].split(",");
     const lib = (v[iLib] || "").replace(/"/g, "");
     const loy = parseFloat(v[iLoy]);
-    const insee = (v[iInsee] || "").replace(/"/g, "").trim();
+    let insee = (v[iInsee] || "").replace(/"/g, "").trim();
+    // Pad INSEE à 5 chars (06088 au lieu de 6088)
+    if (insee && /^\d+$/.test(insee)) insee = insee.padStart(5, "0");
     if (!isNaN(loy) && loy > 0) rows.push({ lib, loy, insee });
   }
   return rows;
