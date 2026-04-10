@@ -127,19 +127,43 @@
             <input id="deptInput" type="text" placeholder="Ex: 75, 92, 93, 94" style="flex:1;background:#161b2e;border:1px solid #2a3050;color:#e0e0e0;padding:.55rem .75rem;border-radius:8px;font-size:.9rem" />
             <button class="btn btn-primary" id="btnFetchAnalyze">Analyser</button>
           </div>
-          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem" id="deptQuickBtns">
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('75')">Paris 75</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('92')">Hauts-de-Seine 92</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('93')">Seine-St-Denis 93</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('94')">Val-de-Marne 94</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('78')">Yvelines 78</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('91')">Essonne 91</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('95')">Val-d'Oise 95</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('77')">Seine-et-Marne 77</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('69')">Rhone 69</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('13')">Bouches-du-Rhone 13</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('33')">Gironde 33</button>
-            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('06')">Alpes-Maritimes 06</button>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+            <button class="btn btn-primary" style="padding:.35rem .8rem;font-size:.78rem;background:#ff6644" onclick="addRegion('france')">TOUTE LA FRANCE</button>
+          </div>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.4rem">
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('idf')">Ile-de-France</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('aura')">Auvergne-RA</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('paca')">PACA</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('occitanie')">Occitanie</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('naquitaine')">Nlle-Aquitaine</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('bretagne')">Bretagne</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('hdf')">Hauts-de-France</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('grandest')">Grand Est</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('normandie')">Normandie</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('pdl')">Pays de la Loire</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('bfc')">Bourgogne-FC</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('centre')">Centre-VdL</button>
+            <button class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.72rem;background:#1a4040;border:1px solid #00d4aa" onclick="addRegion('corse')">Corse</button>
+          </div>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem">
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('75')">75</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('92')">92</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('93')">93</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('94')">94</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('78')">78</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('91')">91</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('95')">95</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('77')">77</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('69')">69</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('13')">13</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('33')">33</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('06')">06</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('31')">31</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('44')">44</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('59')">59</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('67')">67</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="addDept('34')">34</button>
+            <button class="btn btn-secondary" style="padding:.2rem .45rem;font-size:.68rem" onclick="clearDepts()">Effacer</button>
           </div>
           <div class="progress" id="progressWrap" style="display:none">
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
@@ -362,11 +386,39 @@ function lg(m, c) { logEl.innerHTML += `<div class="l ${c}">${new Date().toLocal
 // ===================================================================
 // DEPT INPUT HELPERS
 // ===================================================================
+const REGIONS = {
+  idf:        ["75","77","78","91","92","93","94","95"],
+  aura:       ["01","03","07","15","26","38","42","43","63","69","73","74"],
+  paca:       ["04","05","06","13","83","84"],
+  occitanie:  ["09","11","12","30","31","32","34","46","48","65","66","81","82"],
+  naquitaine: ["16","17","19","23","24","33","40","47","64","79","86","87"],
+  bretagne:   ["22","29","35","56"],
+  hdf:        ["02","59","60","62","80"],
+  grandest:   ["08","10","51","52","54","55","57","67","68","88"],
+  normandie:  ["14","27","50","61","76"],
+  pdl:        ["44","49","53","72","85"],
+  bfc:        ["21","25","39","58","70","71","89","90"],
+  centre:     ["18","28","36","37","41","45"],
+  corse:      ["2A","2B"],
+};
+REGIONS.france = Object.values(REGIONS).flat();
+
 window.addDept = (d) => {
   const el = document.getElementById("deptInput");
   const current = el.value.split(",").map(s => s.trim()).filter(s => s);
   if (!current.includes(d)) { current.push(d); el.value = current.join(", "); }
 };
+
+window.addRegion = (r) => {
+  const depts = REGIONS[r];
+  if (!depts) return;
+  const el = document.getElementById("deptInput");
+  const current = new Set(el.value.split(",").map(s => s.trim()).filter(s => s));
+  depts.forEach(d => current.add(d));
+  el.value = [...current].join(", ");
+};
+
+window.clearDepts = () => { document.getElementById("deptInput").value = ""; };
 
 // ===================================================================
 // GITHUB FILE LIST (loyers)
