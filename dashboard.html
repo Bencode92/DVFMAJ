@@ -116,35 +116,53 @@
       <div class="tab" data-tab="extract">3. Extract JSON</div>
     </div>
 
-    <!-- ============ UPLOAD ============ -->
+    <!-- ============ DONNEES ============ -->
     <div class="tab-content active" id="tab-upload">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
-        <!-- Left: upload -->
+        <!-- Left: Fetch API DVF -->
         <div>
-          <h3 style="color:#00d4aa;font-size:.95rem;margin-bottom:1rem">Ajouter des fichiers</h3>
-          <div class="alert" id="uploadAlert"></div>
-          <div class="drop-zone" id="dropZone">
-            <p>Glisser-deposer vos CSV</p>
-            <p class="hint">ou cliquer pour selectionner</p>
-            <p class="accepted">Capital_XX.csv | loyer_1ou2p.csv | loyer_3p.csv</p>
-            <input type="file" id="fileInput" multiple accept=".csv" style="display:none" />
+          <h3 style="color:#00d4aa;font-size:.95rem;margin-bottom:1rem">Fetch API DVF (recommande)</h3>
+          <p style="color:#888;font-size:.82rem;margin-bottom:.75rem">Entrer les departements a analyser. Les donnees sont telechargees directement depuis l'API officielle data.gouv.fr</p>
+          <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
+            <input id="deptInput" type="text" placeholder="Ex: 75, 92, 93, 94" style="flex:1;background:#161b2e;border:1px solid #2a3050;color:#e0e0e0;padding:.55rem .75rem;border-radius:8px;font-size:.9rem" />
+            <button class="btn btn-primary" id="btnFetchAnalyze">Analyser</button>
           </div>
-          <div id="fileList"></div>
-          <div style="display:flex;gap:.75rem;margin-top:.75rem">
-            <button class="btn btn-secondary" id="btnClear" disabled>Vider</button>
-            <button class="btn btn-primary" id="btnPush" disabled>Push sur GitHub</button>
-          </div>
-        </div>
-        <!-- Right: existing files on GitHub -->
-        <div>
-          <h3 style="color:#00d4aa;font-size:.95rem;margin-bottom:1rem">Fichiers sur GitHub</h3>
-          <div id="ghFileList"><span style="color:#555;font-size:.85rem">Chargement...</span></div>
-          <div style="margin-top:1rem">
-            <button class="btn btn-primary" id="btnAnalyze" disabled>Charger &amp; Analyser</button>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem" id="deptQuickBtns">
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('75')">Paris 75</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('92')">Hauts-de-Seine 92</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('93')">Seine-St-Denis 93</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('94')">Val-de-Marne 94</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('78')">Yvelines 78</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('91')">Essonne 91</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('95')">Val-d'Oise 95</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('77')">Seine-et-Marne 77</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('69')">Rhone 69</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('13')">Bouches-du-Rhone 13</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('33')">Gironde 33</button>
+            <button class="btn btn-secondary" style="padding:.3rem .6rem;font-size:.75rem" onclick="addDept('06')">Alpes-Maritimes 06</button>
           </div>
           <div class="progress" id="progressWrap" style="display:none">
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
             <div class="progress-text" id="progressText"></div>
+          </div>
+        </div>
+        <!-- Right: Upload CSV (optionnel) + loyers GitHub -->
+        <div>
+          <h3 style="color:#888;font-size:.95rem;margin-bottom:1rem">Upload CSV (optionnel)</h3>
+          <div class="alert" id="uploadAlert"></div>
+          <div class="drop-zone" id="dropZone" style="padding:1.5rem">
+            <p>Glisser CSV ici</p>
+            <p class="accepted">Capital_XX.csv | loyer_*.csv</p>
+            <input type="file" id="fileInput" multiple accept=".csv" style="display:none" />
+          </div>
+          <div id="fileList"></div>
+          <div style="display:flex;gap:.75rem;margin-top:.5rem">
+            <button class="btn btn-secondary" id="btnClear" disabled style="font-size:.8rem;padding:.4rem .8rem">Vider</button>
+            <button class="btn btn-primary" id="btnPush" disabled style="font-size:.8rem;padding:.4rem .8rem">Push GitHub</button>
+          </div>
+          <div style="margin-top:1rem">
+            <h4 style="color:#888;font-size:.82rem;margin-bottom:.4rem">Loyers sur GitHub</h4>
+            <div id="ghFileList" style="font-size:.8rem"><span style="color:#555">Chargement...</span></div>
           </div>
         </div>
       </div>
@@ -230,6 +248,7 @@ const FORFAIT_DEP = 15000;           // v3: décote par dépendance (parking/cav
 const MAX_DEDUCTION = 30000;         // v3: cap déduction dépendances
 const TREND_T_THRESHOLD = 1.96;      // v3: bilatéral (était 1.65 unilatéral)
 
+const DVF_API = "https://dvf-api.data.gouv.fr/dvf/csv/?dep=";
 const VALID_PAT = [/^Capital_\d{2,3}[A-B]?\.csv$/i, /^loyer_1ou2p\.csv$/i, /^loyer_3p\.csv$/i];
 
 // ===================================================================
@@ -341,7 +360,16 @@ function readB64(f) { return new Promise((res,rej) => { const r = new FileReader
 function lg(m, c) { logEl.innerHTML += `<div class="l ${c}">${new Date().toLocaleTimeString()} — ${m}</div>`; logEl.scrollTop = logEl.scrollHeight; }
 
 // ===================================================================
-// GITHUB FILE LIST
+// DEPT INPUT HELPERS
+// ===================================================================
+window.addDept = (d) => {
+  const el = document.getElementById("deptInput");
+  const current = el.value.split(",").map(s => s.trim()).filter(s => s);
+  if (!current.includes(d)) { current.push(d); el.value = current.join(", "); }
+};
+
+// ===================================================================
+// GITHUB FILE LIST (loyers)
 // ===================================================================
 async function loadGhFiles() {
   const el = document.getElementById("ghFileList");
@@ -349,72 +377,91 @@ async function loadGhFiles() {
     const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data?ref=${BRANCH}`);
     if (!r.ok) throw new Error("HTTP " + r.status);
     const files = await r.json();
-    const csvs = files.filter(f => f.name.endsWith(".csv")).sort((a,b) => a.name.localeCompare(b.name));
-    el.innerHTML = csvs.map(f => {
-      const sz = f.size ? (f.size/1024/1024).toFixed(1)+" Mo" : "";
-      const isCapital = /^Capital_/i.test(f.name);
-      const color = isCapital ? "#00d4aa" : "#ffaa00";
-      return `<div class="file-item"><span class="fname" style="color:${color}">${f.name}</span><span class="fsize">${sz}</span></div>`;
-    }).join("") || '<span style="color:#555">Aucun fichier</span>';
-    document.getElementById("btnAnalyze").disabled = csvs.length === 0;
-  } catch(e) { el.innerHTML = `<span style="color:#ff4444">Erreur: ${e.message}</span>`; }
+    const loyers = files.filter(f => /^loyer_/i.test(f.name) && f.name.endsWith(".csv"));
+    el.innerHTML = loyers.map(f =>
+      `<span style="color:#ffaa00;margin-right:.75rem">${f.name}</span>`
+    ).join("") || '<span style="color:#555">Aucun fichier loyer</span>';
+  } catch(e) { el.innerHTML = `<span style="color:#ff4444">${e.message}</span>`; }
 }
 
 // ===================================================================
-// ANALYZE: load CSVs from GitHub and process
+// ANALYZE: fetch depuis API DVF + loyers GitHub
 // ===================================================================
-document.getElementById("btnAnalyze").addEventListener("click", runAnalysis);
+document.getElementById("btnFetchAnalyze").addEventListener("click", runAnalysis);
+document.getElementById("deptInput").addEventListener("keydown", e => { if(e.key==="Enter") runAnalysis(); });
 
 async function runAnalysis() {
-  const btn = document.getElementById("btnAnalyze");
+  const deptStr = document.getElementById("deptInput").value.trim();
+  if (!deptStr) { alert("Entrer au moins un departement (ex: 75, 92)"); return; }
+  const depts = deptStr.split(",").map(s => s.trim()).filter(s => /^\d{2,3}[AB]?$/i.test(s));
+  if (depts.length === 0) { alert("Format invalide. Ex: 75, 92, 2A"); return; }
+
+  const btn = document.getElementById("btnFetchAnalyze");
   btn.disabled = true; btn.textContent = "Analyse en cours...";
   const pw = document.getElementById("progressWrap"); pw.style.display = "block";
-  setProgress(0, "Chargement de la liste des fichiers...");
+  setProgress(0, "Demarrage...");
 
   try {
-    // 1) List files
-    const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data?ref=${BRANCH}`);
-    const files = await r.json();
-    const capitals = files.filter(f => /^Capital_/i.test(f.name) && f.name.endsWith(".csv"));
-    const loyerFiles = files.filter(f => /^loyer_/i.test(f.name) && f.name.endsWith(".csv"));
-
-    // 2) Download all CSVs
+    // 1) Fetch DVF par departement via API directe (ou Worker proxy si CORS)
     let allRows = [];
-    for (let i = 0; i < capitals.length; i++) {
-      setProgress((i / (capitals.length + loyerFiles.length)) * 80, `Telechargement ${capitals[i].name}...`);
-      const csv = await fetch(RAW + "/data/" + capitals[i].name).then(r => r.text());
+    for (let i = 0; i < depts.length; i++) {
+      const dept = depts[i];
+      const pct = (i / depts.length) * 70;
+      setProgress(pct, `Telechargement dept ${dept} (${i+1}/${depts.length})...`);
+
+      let csv;
+      try {
+        // Essai direct (CORS permissif sur certains browsers)
+        const resp = await fetch(DVF_API + dept);
+        if (resp.ok) { csv = await resp.text(); }
+        else throw new Error("direct failed");
+      } catch(e) {
+        // Fallback Worker proxy
+        setProgress(pct, `Dept ${dept} via proxy...`);
+        const resp = await fetch(`${WORKER_URL}/dvf/?dep=${dept}`);
+        if (!resp.ok) throw new Error(`Dept ${dept}: HTTP ${resp.status}`);
+        csv = await resp.text();
+      }
+
       const rows = parseCSV(csv);
       allRows = allRows.concat(rows);
+      setProgress(pct + 5, `Dept ${dept}: ${rows.length.toLocaleString("fr")} lignes`);
     }
-    setProgress(70, `${allRows.length.toLocaleString("fr")} lignes brutes chargees. Telechargement loyers...`);
+    setProgress(72, `${allRows.length.toLocaleString("fr")} lignes brutes. Telechargement loyers...`);
 
-    // 3) Download loyers
+    // 2) Loyers depuis GitHub
     let loyerRows12 = [], loyerRows3p = [];
-    for (const lf of loyerFiles) {
-      setProgress(75, `Telechargement ${lf.name}...`);
-      const csv = await fetch(RAW + "/data/" + lf.name).then(r => r.text());
-      const rows = parseLoyerCSV(csv);
-      if (/1ou2p/i.test(lf.name)) loyerRows12 = rows;
-      else loyerRows3p = rows;
-    }
+    try {
+      const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data?ref=${BRANCH}`);
+      if (r.ok) {
+        const files = await r.json();
+        for (const lf of files.filter(f => /^loyer_/i.test(f.name) && f.name.endsWith(".csv"))) {
+          setProgress(76, `Loyers: ${lf.name}...`);
+          const csv = await fetch(RAW + "/data/" + lf.name).then(r => r.text());
+          const rows = parseLoyerCSV(csv);
+          if (/1ou2p/i.test(lf.name)) loyerRows12 = rows;
+          else loyerRows3p = rows;
+        }
+      }
+    } catch(e) { console.warn("Loyers non charges:", e.message); }
 
-    // 4) Transform
+    // 3) Transform
     setProgress(80, "Filtrage et agregation des mutations...");
     await sleep(10);
     const venteData = transformPipeline(allRows);
-    setProgress(88, `${venteData.length.toLocaleString("fr")} mutations apres trimming. Calcul des stats...`);
+    setProgress(88, `${venteData.length.toLocaleString("fr")} mutations apres trimming. Stats...`);
     await sleep(10);
 
-    // 5) Analytics
+    // 4) Analytics
     STATS = analyticsPipeline(venteData, loyerRows12, loyerRows3p);
-    setProgress(95, "Generation du JSON...");
+    setProgress(95, "Generation JSON...");
     await sleep(10);
 
-    // 6) Build JSON
+    // 5) Build JSON
     VILLES_JSON = buildVillesJson(STATS);
 
-    setProgress(100, `Termine: ${STATS.length} lignes, ${VILLES_JSON.villes.length} villes`);
-    document.getElementById("dataStatus").textContent = `${STATS.length} lignes | ${VILLES_JSON.villes.length} villes`;
+    setProgress(100, `Termine: ${STATS.length} lignes, ${VILLES_JSON.villes.length} villes, ${depts.length} dept(s)`);
+    document.getElementById("dataStatus").textContent = `${STATS.length} lignes | ${VILLES_JSON.villes.length} villes | dept: ${depts.join(", ")}`;
 
     // Show results
     document.getElementById("noResults").style.display = "none";
@@ -428,7 +475,7 @@ async function runAnalysis() {
     setProgress(0, "Erreur: " + e.message);
     console.error(e);
   }
-  btn.disabled = false; btn.textContent = "Charger & Analyser";
+  btn.disabled = false; btn.textContent = "Analyser";
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
