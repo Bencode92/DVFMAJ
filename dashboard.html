@@ -268,9 +268,24 @@ const MIN_N = 20;
 const MIN_N_FALLBACK = 5;
 const MAD_THRESHOLD = 3.5;
 const LAMBDA_SHRINK = 60;            // v3: compromis prudent (était 75)
-const FORFAIT_DEP = 15000;           // v3: décote par dépendance (parking/cave)
-const MAX_DEDUCTION = 30000;         // v3: cap déduction dépendances
-const TREND_T_THRESHOLD = 1.96;      // v3: bilatéral (était 1.65 unilatéral)
+const TREND_T_THRESHOLD = 1.96;
+const TREND_CAP = 15;               // v4: cap tendance ±15%/an
+const COPRO_DEGRADEE_SEUIL = 1500;  // v4: flag si prix/m² < 1500€
+
+// v4: décote dépendances zonée
+const DEP_FORFAITS = {
+  paris:   { parking: 35000, cave: 8000, cap: 50000 },  // 75
+  pc:      { parking: 20000, cave: 5000, cap: 35000 },  // 92,93,94
+  gc:      { parking: 12000, cave: 3000, cap: 20000 },  // 77,78,91,95 + reste
+};
+function getDepZone(dept) {
+  if (dept === "75") return DEP_FORFAITS.paris;
+  if (["92","93","94"].includes(dept)) return DEP_FORFAITS.pc;
+  return DEP_FORFAITS.gc;
+}
+
+// v4: correctif loyer par bucket (source regroupe 1-2p et 3p+)
+const LOYER_COEFF = { "1": 1.10, "2": 1.00, "3": 0.95, "4": 0.95, "5": 0.95 };
 
 const DVF_API = "https://dvf-api.data.gouv.fr/dvf/csv/?dep=";
 const VALID_PAT = [/^Capital_\d{2,3}[A-B]?\.csv$/i, /^loyer_1ou2p\.csv$/i, /^loyer_3p\.csv$/i];
@@ -632,8 +647,12 @@ function transformPipeline(rawRows) {
   for (const [, g] of groups) {
     if (g.nAppart !== 1 || g.pieces < 1 || g.pieces > 5 || g.surf < 9) continue;
 
-    // Décote dépendances
-    const deduction = Math.min(g.nDep * FORFAIT_DEP, MAX_DEDUCTION);
+    // v4: Décote dépendances zonée (Paris/PC/GC)
+    const zone = getDepZone(g.dept);
+    // Heuristique: 1 dep = parking OU cave, 2+ = parking + caves
+    const deduction = g.nDep === 0 ? 0
+      : g.nDep === 1 ? zone.parking
+      : Math.min(zone.parking + (g.nDep - 1) * zone.cave, zone.cap);
     const vfAdj = g.vf - deduction;
     if (vfAdj <= 0) continue;
 
@@ -862,26 +881,37 @@ function analyticsPipeline(vente, loyer12, loyer3p) {
     const ageMed = weightedMedian(ar.map(r=>r.ageDays), ar.map(r=>r.w));
 
     // v3: Tendance par régression pondérée
-    const tendance = computeTrend(rows);
+    let tendance = computeTrend(rows);
+    // v4: cap tendance à ±15%/an
+    if (tendance != null) tendance = Math.max(-TREND_CAP, Math.min(TREND_CAP, tendance));
 
-    // v3: Fiabilité enrichie avec fraîcheur
+    // v4: Fiabilité enrichie avec fraîcheur + n_brut
     const cv = (madW && med) ? madW / med : 1;
+    const nBrut = rows.length;
     let fiabilite;
     if (nEff >= 30 && cv < 0.25 && ageMed != null && ageMed <= 365) fiabilite = "A";
     else if (nEff >= 15 && cv < 0.40 && (ageMed == null || ageMed <= 540)) fiabilite = "B";
     else fiabilite = "C";
-    // Forcer C si données trop anciennes
     if (ageMed != null && ageMed > 540) fiabilite = "C";
+    // v4: n_brut >= 100 → minimum B (corrige faux négatif Paris)
+    if (nBrut >= 100 && fiabilite === "C") fiabilite = "B";
 
-    // v3: Loyer par code INSEE
-    const loyerVal = getLoyer(codeC, commune, bucket);
+    // v4: Loyer par code INSEE + correctif bucket
+    let loyerVal = getLoyer(codeC, commune, bucket);
+    if (loyerVal != null) {
+      const coeff = LOYER_COEFF[bucket] || 1.0;
+      loyerVal = Math.round(loyerVal * coeff * 100) / 100;
+    }
+
+    // v4: Flag copropriété dégradée
+    const coproDegradee = (med != null && med < COPRO_DEGRADEE_SEUIL);
 
     return {
       code_departement: dept, code_commune: codeC, nom_commune: commune, piece_bucket: bucket,
       ref_m2: med, ref_raw: med, mean_w: meanW, n_mut: rows.length, n_eff: nEff,
       mad_w: madW, p25, p75, surf_med: surfMed, age_med_j: ageMed,
       Loyer: loyerVal, source_level: sourceLevel,
-      tendance, fiabilite,
+      tendance, fiabilite, copro_degradee: coproDegradee,
     };
   }
 
@@ -959,6 +989,7 @@ function buildVillesJson(stats) {
     if (r.Loyer != null) p.loyer_m2 = Math.round(r.Loyer * 100) / 100;
     if (r.fiabilite) p.fiabilite = r.fiabilite;
     if (r.tendance != null) p.tendance_pct = r.tendance;
+    if (r.copro_degradee) p.copro_degradee = true;
     if (Object.keys(p).length) map[k].pieces[bMap[r.piece_bucket] || "T"+r.piece_bucket] = p;
   }
   return { villes: Object.values(map).sort((a, b) => a.nom.localeCompare(b.nom)) };
