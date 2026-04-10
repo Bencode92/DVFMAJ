@@ -96,6 +96,7 @@
     .extract-btn:hover { background: #3a4060; }
     .extract-btn.push { background: #00d4aa; color: #0a0e1a; }
     .extract-btn.push:hover { background: #00f0c0; }
+    .commFilter.active { background: #ffaa00 !important; color: #0a0e1a !important; }
 
     .progress { margin: 1rem 0; }
     .progress-bar { height: 6px; background: #1a2035; border-radius: 3px; overflow: hidden; }
@@ -204,6 +205,7 @@
           <div class="tab" data-sub="dept">Par Dept</div>
           <div class="tab" data-sub="commune">Par Commune</div>
           <div class="tab" data-sub="loyer">Loyers</div>
+          <div class="tab" data-sub="commercial" style="color:#ffaa00;border-color:#ffaa00">Commercial</div>
         </div>
         <div class="tab-content active" id="sub-global">
           <div class="cards" id="globalCards"></div>
@@ -222,6 +224,18 @@
           <div class="cards" id="loyerCards"></div>
           <div class="search-bar"><input id="loyerSearch" placeholder="Rechercher..." /></div>
           <div id="loyerBars" style="max-height:55vh;overflow-y:auto"></div>
+        </div>
+        <div class="tab-content" id="sub-commercial">
+          <div class="cards" id="commCards"></div>
+          <div style="display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap">
+            <button class="btn btn-secondary commFilter active" data-seg="all" onclick="filterCommSeg('all')" style="padding:.3rem .7rem;font-size:.78rem">Tous</button>
+            <button class="btn btn-secondary commFilter" data-seg="S1" onclick="filterCommSeg('S1')" style="padding:.3rem .7rem;font-size:.78rem">S1 Boutique (9-50m²)</button>
+            <button class="btn btn-secondary commFilter" data-seg="S2" onclick="filterCommSeg('S2')" style="padding:.3rem .7rem;font-size:.78rem">S2 Local (50-150m²)</button>
+            <button class="btn btn-secondary commFilter" data-seg="S3" onclick="filterCommSeg('S3')" style="padding:.3rem .7rem;font-size:.78rem">S3 Plateau (150-500m²)</button>
+            <button class="btn btn-secondary commFilter" data-seg="S4" onclick="filterCommSeg('S4')" style="padding:.3rem .7rem;font-size:.78rem">S4 Immeuble (500m²+)</button>
+          </div>
+          <div class="search-bar"><input id="commSearch" placeholder="Rechercher une commune..." /></div>
+          <div class="table-wrap" style="max-height:60vh;overflow-y:auto"><table id="commTable"><thead></thead><tbody></tbody></table></div>
         </div>
       </div>
     </div>
@@ -1163,7 +1177,7 @@ function buildVillesJson(stats) {
 // RENDER RESULTS
 // ===================================================================
 function renderResults() {
-  renderGlobal(); renderDept(); renderCommune(); renderLoyer();
+  renderGlobal(); renderDept(); renderCommune(); renderLoyer(); renderCommercial();
 }
 
 function renderGlobal() {
@@ -1239,6 +1253,95 @@ function renderLoyer(filter) {
     return `<div class="loyer-bar"><span class="cname" title="${d.n}">${d.n}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="lval">${d.l.toFixed(1)}</span><span style="width:55px;text-align:right;color:#888;font-size:.72rem">${r}%</span></div>`;}).join("");
 }
 document.getElementById("loyerSearch").addEventListener("input", e => renderLoyer(e.target.value));
+
+// ===== COMMERCIAL DASHBOARD =====
+let COMM_STATS_GLOBAL = [];
+let commSegFilter = "all";
+let commSortCol = null, commSortAsc = true;
+
+window.filterCommSeg = (seg) => {
+  commSegFilter = seg;
+  document.querySelectorAll(".commFilter").forEach(b => b.classList.remove("active"));
+  document.querySelector(`.commFilter[data-seg="${seg}"]`).classList.add("active");
+  renderCommTable(document.getElementById("commSearch").value);
+};
+
+function renderCommercial() {
+  if (!COMMERCIAL_JSON || !COMMERCIAL_JSON.locaux.length) {
+    document.getElementById("commCards").innerHTML = '<div class="card"><div class="label">Aucune donnee commerciale</div><div class="value">-</div></div>';
+    return;
+  }
+
+  // Flatten stats for table
+  COMM_STATS_GLOBAL = [];
+  for (const loc of COMMERCIAL_JSON.locaux) {
+    for (const [seg, data] of Object.entries(loc.surfaces)) {
+      COMM_STATS_GLOBAL.push({ commune: loc.nom, dept: loc.departement, seg, ...data });
+    }
+  }
+
+  // Cards
+  const communes = COMMERCIAL_JSON.locaux.length;
+  const totalTx = COMM_STATS_GLOBAL.reduce((s, r) => s + (r.nb_transactions || 0), 0);
+  const prices = COMM_STATS_GLOBAL.filter(r => r.prix_m2);
+  const avgP = prices.length ? prices.reduce((s, r) => s + r.prix_m2, 0) / prices.length : 0;
+  const segCounts = {};
+  COMM_STATS_GLOBAL.forEach(r => { segCounts[r.seg] = (segCounts[r.seg] || 0) + 1; });
+
+  document.getElementById("commCards").innerHTML = `
+    <div class="card"><div class="label">Communes</div><div class="value" style="color:#ffaa00">${communes}</div></div>
+    <div class="card"><div class="label">Lignes</div><div class="value" style="color:#ffaa00">${COMM_STATS_GLOBAL.length}</div></div>
+    <div class="card"><div class="label">Transactions</div><div class="value" style="color:#ffaa00">${totalTx.toLocaleString("fr")}</div></div>
+    <div class="card"><div class="label">Prix moy. /m²</div><div class="value" style="color:#ffaa00">${Math.round(avgP).toLocaleString("fr")} EUR</div></div>
+    <div class="card"><div class="label">S1 Boutique</div><div class="value" style="color:#ffaa00">${segCounts.S1||0}</div></div>
+    <div class="card"><div class="label">S2 Local</div><div class="value" style="color:#ffaa00">${segCounts.S2||0}</div></div>
+    <div class="card"><div class="label">S3 Plateau</div><div class="value" style="color:#ffaa00">${segCounts.S3||0}</div></div>
+    <div class="card"><div class="label">S4 Immeuble</div><div class="value" style="color:#ffaa00">${segCounts.S4||0}</div></div>
+  `;
+
+  renderCommTable();
+}
+
+function renderCommTable(filter) {
+  let rows = [...COMM_STATS_GLOBAL];
+  if (commSegFilter !== "all") rows = rows.filter(r => r.seg === commSegFilter);
+  if (filter) { const f = filter.toLowerCase(); rows = rows.filter(r => r.commune.toLowerCase().includes(f)); }
+  if (commSortCol) {
+    rows.sort((a, b) => {
+      let va = a[commSortCol], vb = b[commSortCol];
+      if (va == null) return 1; if (vb == null) return -1;
+      return typeof va === "string" ? (commSortAsc ? va.localeCompare(vb) : vb.localeCompare(va)) : (commSortAsc ? va - vb : vb - va);
+    });
+  }
+
+  const segLabel = { S1: "Boutique", S2: "Local", S3: "Plateau", S4: "Immeuble" };
+  const cols = [
+    { k: "commune", l: "Commune" }, { k: "dept", l: "Dept" }, { k: "seg", l: "Segment" },
+    { k: "prix_m2", l: "Prix/m²", n: 1 }, { k: "p25", l: "P25", n: 1 }, { k: "p75", l: "P75", n: 1 },
+    { k: "surface_mediane", l: "Surf. med", n: 1 }, { k: "nb_transactions", l: "Tx", n: 1 }, { k: "fiabilite", l: "Fiab." },
+  ];
+  const arrow = k => commSortCol === k ? (commSortAsc ? " ▲" : " ▼") : "";
+
+  document.querySelector("#commTable thead").innerHTML = "<tr>" +
+    cols.map(c => `<th class="${c.n ? 'num' : ''}" onclick="doCommSort('${c.k}')">${c.l}${arrow(c.k)}</th>`).join("") + "</tr>";
+
+  const fiabC = f => f === "A" ? "#00d4aa" : f === "B" ? "#ffaa00" : "#ff6666";
+
+  document.querySelector("#commTable tbody").innerHTML = rows.map(r => `<tr>
+    <td>${r.commune}</td>
+    <td>${r.dept}</td>
+    <td><span style="color:#ffaa00">${r.seg}</span> <span style="color:#666;font-size:.72rem">${segLabel[r.seg] || ""}</span></td>
+    <td class="num" style="color:#ffaa00;font-weight:600">${r.prix_m2 ? Math.round(r.prix_m2).toLocaleString("fr") + " EUR" : "-"}</td>
+    <td class="num">${r.p25 ? Math.round(r.p25).toLocaleString("fr") : "-"}</td>
+    <td class="num">${r.p75 ? Math.round(r.p75).toLocaleString("fr") : "-"}</td>
+    <td class="num">${r.surface_mediane ? r.surface_mediane + " m²" : "-"}</td>
+    <td class="num">${r.nb_transactions || "-"}</td>
+    <td style="color:${fiabC(r.fiabilite)};font-weight:600">${r.fiabilite || "-"}</td>
+  </tr>`).join("");
+}
+
+window.doCommSort = k => { if (commSortCol === k) commSortAsc = !commSortAsc; else { commSortCol = k; commSortAsc = true; } renderCommTable(document.getElementById("commSearch").value); };
+document.getElementById("commSearch").addEventListener("input", e => renderCommTable(e.target.value));
 
 // ===================================================================
 // EXTRACT JSON
