@@ -1524,8 +1524,12 @@ function buildBureauxAdressesJson() {
           loyer_prime: cushData.loyer_prime,
           loyer_1re_main: cushData.loyer_1re_main,
           loyer_2de_main: cushData.loyer_2de_main,
-          taux_vacance: cushData.taux_vacance,
+          taux_vacance_marche_pct: cushData.taux_vacance,
         } : null,
+        // Vacance pour BP : max(5%, vacance_marché / 2.5) — prudent
+        vacance_bp_pct: cushData && cushData.taux_vacance
+          ? Math.max(5, Math.round(cushData.taux_vacance / 2.5 * 10) / 10)
+          : 5,
         // Yield
         yield_prime: yields ? yields.prime : null,
         yield_secondaire: yields ? yields.sec : null,
@@ -1555,6 +1559,14 @@ function buildBureauxAdressesJson() {
       renove_total_an: (cbreRef.renove_min && cbreRef.renove_max) ? { min: Math.round(cbreRef.renove_min * surface), max: Math.round(cbreRef.renove_max * surface), mid: Math.round((cbreRef.renove_min + cbreRef.renove_max) / 2 * surface) } : null,
     } : null;
 
+    // Vacance BP de la ville
+    const vacBp = villes[ville].vacance_bp_pct / 100;
+    // Vacance marché Cushman
+    const vacMarche = villes[ville].ref_cushman ? (villes[ville].ref_cushman.taux_vacance_marche_pct / 100) : null;
+
+    // Loyer net = loyer brut × (1 - vacance)
+    const netFactor = 1 - vacBp;
+
     villes[ville].transactions.push({
       adresse: adresse,
       numero: num,
@@ -1566,12 +1578,27 @@ function buildBureauxAdressesJson() {
       segment: r.bucket,
       // Méthode 1 : cap rate
       loyer_caprate: {
-        m2_an: loyerCapRate_m2,
-        total_an: loyerCapRate_total,
+        m2_an_brut: loyerCapRate_m2,
+        m2_an_net: loyerCapRate_m2 ? Math.round(loyerCapRate_m2 * netFactor) : null,
+        total_an_brut: loyerCapRate_total,
+        total_an_net: loyerCapRate_total ? Math.round(loyerCapRate_total * netFactor) : null,
         yield_applique: yieldSec,
       },
       // Méthode 2 : CBRE
-      loyer_cbre: loyerCbre,
+      loyer_cbre: loyerCbre ? {
+        ...loyerCbre,
+        // Net après vacance
+        usage_mid_m2_net: loyerCbre.usage_mid_m2 ? Math.round(loyerCbre.usage_mid_m2 * netFactor) : null,
+        renove_mid_m2_net: loyerCbre.renove_mid_m2 ? Math.round(loyerCbre.renove_mid_m2 * netFactor) : null,
+        usage_total_an_net: loyerCbre.usage_total_an ? Math.round(loyerCbre.usage_total_an.mid * netFactor) : null,
+        renove_total_an_net: loyerCbre.renove_total_an ? Math.round(loyerCbre.renove_total_an.mid * netFactor) : null,
+      } : null,
+      // Vacance appliquée
+      vacance: {
+        taux_bp_pct: villes[ville].vacance_bp_pct,
+        taux_marche_pct: vacMarche ? Math.round(vacMarche * 1000) / 10 : null,
+        source: "Cushman & Wakefield T4 2025",
+      },
       coordonnees: (r.lng && r.lat) ? { lng: r.lng, lat: r.lat } : null,
     });
   }
