@@ -1534,8 +1534,26 @@ function buildBureauxAdressesJson() {
     }
 
     const pm2 = r.pm2;
-    const yields = villes[ville].yield_secondaire;
-    const loyerEstime = yields ? Math.round(pm2 * yields) : null;
+    const surface = r.surf;
+    const yieldSec = villes[ville].yield_secondaire;
+    const cbreRef = villes[ville].ref_cbre;
+
+    // Méthode 1 : cap rate = prix DVF × yield
+    const loyerCapRate_m2 = yieldSec ? Math.round(pm2 * yieldSec) : null;
+    const loyerCapRate_total = (loyerCapRate_m2 && surface) ? Math.round(loyerCapRate_m2 * surface) : null;
+
+    // Méthode 2 : fourchette CBRE directe (EUR/m²/an)
+    const loyerCbre = cbreRef ? {
+      usage_min_m2: cbreRef.usage_min,
+      usage_max_m2: cbreRef.usage_max,
+      usage_mid_m2: (cbreRef.usage_min && cbreRef.usage_max) ? Math.round((cbreRef.usage_min + cbreRef.usage_max) / 2) : null,
+      renove_min_m2: cbreRef.renove_min,
+      renove_max_m2: cbreRef.renove_max,
+      renove_mid_m2: (cbreRef.renove_min && cbreRef.renove_max) ? Math.round((cbreRef.renove_min + cbreRef.renove_max) / 2) : null,
+      // Loyer annuel total pour cette surface
+      usage_total_an: (cbreRef.usage_min && cbreRef.usage_max) ? { min: Math.round(cbreRef.usage_min * surface), max: Math.round(cbreRef.usage_max * surface), mid: Math.round((cbreRef.usage_min + cbreRef.usage_max) / 2 * surface) } : null,
+      renove_total_an: (cbreRef.renove_min && cbreRef.renove_max) ? { min: Math.round(cbreRef.renove_min * surface), max: Math.round(cbreRef.renove_max * surface), mid: Math.round((cbreRef.renove_min + cbreRef.renove_max) / 2 * surface) } : null,
+    } : null;
 
     villes[ville].transactions.push({
       adresse: adresse,
@@ -1543,10 +1561,17 @@ function buildBureauxAdressesJson() {
       voie: rue,
       date: r.date,
       prix_total: Math.round(r.vf),
-      surface_m2: Math.round(r.surf * 10) / 10,
+      surface_m2: Math.round(surface * 10) / 10,
       prix_m2: Math.round(pm2),
       segment: r.bucket,
-      loyer_estime_m2_an: loyerEstime,
+      // Méthode 1 : cap rate
+      loyer_caprate: {
+        m2_an: loyerCapRate_m2,
+        total_an: loyerCapRate_total,
+        yield_applique: yieldSec,
+      },
+      // Méthode 2 : CBRE
+      loyer_cbre: loyerCbre,
       coordonnees: (r.lng && r.lat) ? { lng: r.lng, lat: r.lat } : null,
     });
   }
