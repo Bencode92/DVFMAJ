@@ -1,0 +1,24 @@
+submarket;demande_placee_m2;poids_demande_placee_pct;offre_immediate_m2;poids_offre_immediate_pct;taux_vacance_pct;projets_chantier_sup_5000m2;offre_dispo_chantier_sup_5000m2;taux_precommercialisation_pct;loyer_prime_eur_m2_an;loyer_moyen_1ere_main_eur_m2_an;loyer_moyen_2eme_main_eur_m2_an;source;date_reference
+Paris QCA;311681;19.0;372000;6.0;5.3;237049;153319;35;1250;961;734;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Paris Centre Ouest (hors QCA);108231;6.6;168000;2.7;10.2;68245;51169;25;875;864;596;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Paris Sud;174210;10.6;428000;6.9;7.5;318754;;100;1000;756;521;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Paris Nord-Est;160491;9.8;386000;6.2;12.6;11000;;100;825;628;438;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+TOTAL PARIS;754613;46.1;1354000;21.7;7.8;635048;372514;41;1250;764;538;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+La Défense;149220;9.1;536000;8.6;15.5;195550;34550;82;615;514;413;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Neuilly-Levallois;67140;4.1;180000;2.9;11.3;76356;48203;37;680;482;483;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Boucle Sud;101206;6.2;424000;6.8;14.9;167317;66841;60;540;512;355;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Péri-Défense;94002;5.7;933000;14.9;23.6;17816;17816;0;395;339;245;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Boucle Nord;6354;0.4;109000;1.7;13.4;;;;230;245;187;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+TOTAL CROISSANT OUEST;268702;16.4;1646000;26.3;17.9;261489;132860;49;680;394;317;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Première Couronne Nord;118204;7.2;917000;14.7;25.0;167267;90183;46;390;312;253;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Première Couronne Est;59393;3.6;262000;4.2;10.4;8903;8903;0;340;308;261;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Première Couronne Sud;136582;8.3;488000;7.8;16.4;9444;9444;0;425;372;280;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+TOTAL PREMIERE COURONNE;314179;19.2;1667000;26.7;18.2;185614;108530;42;425;331;265;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Deuxième Couronne Sud;48523;3.0;370000;5.9;9.4;18200;;100;230;220;180;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Ville Nouvelle Saint-Quentin-en-Yvelines;22853;1.4;188000;3.0;12.6;24114;24114;0;190;220;163;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Ville Nouvelle Marne-la-Vallée;17639;1.1;120000;1.9;7.9;;;;220;226;160;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Ville Nouvelle Cergy;10387;0.6;27000;0.4;2.8;7000;7000;0;150;159;113;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Pôle de Roissy;10573;0.6;106000;1.7;8.7;;;;150;183;141;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+Reste Deuxième Couronne;41430;2.5;233000;3.7;2.3;;;;;242;138;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+TOTAL DEUXIEME COURONNE;151405;9.2;1044000;16.7;5.4;49314;31114;37;230;208;149;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025
+TOTAL ILE-DE-FRANCE;1638119;100.0;6247000;100.0;10.7;1327015;679568;49;;450;429;Cushman & Wakefield MarketBeat Bureaux IDF;T4 2025

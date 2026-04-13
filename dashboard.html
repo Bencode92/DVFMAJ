@@ -98,6 +98,25 @@
     .extract-btn.push:hover { background: #00f0c0; }
     .commFilter.active { background: #ffaa00 !important; color: #0a0e1a !important; }
 
+    /* BUREAUX IDF */
+    .bureaux-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+    @media (max-width: 900px) { .bureaux-grid { grid-template-columns: 1fr; } }
+    .sm-table { font-size: .78rem; }
+    .sm-table th { background: #1a1a3a; color: #aa88ff; }
+    .sm-table td.sm-name { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sm-row-total td { font-weight: 700; border-top: 2px solid #aa88ff; }
+    .yield-badge { display: inline-block; padding: .1rem .4rem; border-radius: 4px; font-size: .72rem; font-weight: 600; }
+    .yield-ok { background: rgba(0,212,170,.15); color: #00d4aa; }
+    .yield-warn { background: rgba(255,170,0,.15); color: #ffaa00; }
+    .yield-bad { background: rgba(255,68,68,.15); color: #ff6666; }
+    .idx-card { background: #161b2e; border: 1px solid #2a3050; border-radius: 10px; padding: 1rem; }
+    .idx-card h4 { font-size: .85rem; margin-bottom: .5rem; }
+    .idx-val { font-size: 1.8rem; font-weight: 700; }
+    .idx-sub { font-size: .75rem; color: #888; margin-top: .2rem; }
+    .cross-ok { color: #00d4aa; }
+    .cross-warn { color: #ffaa00; }
+    .cross-bad { color: #ff6666; }
+
     .progress { margin: 1rem 0; }
     .progress-bar { height: 6px; background: #1a2035; border-radius: 3px; overflow: hidden; }
     .progress-fill { height: 100%; background: #00d4aa; transition: width .3s; width: 0; }
@@ -192,6 +211,74 @@
         </div>
       </div>
       <div class="log" id="log" style="display:none"></div>
+
+      <!-- ============ COMMERCIAL & BUREAUX IDF ============ -->
+      <div style="margin-top:1.5rem;border-top:2px solid #aa88ff;padding-top:1.5rem">
+        <h3 style="color:#aa88ff;font-size:1rem;margin-bottom:1rem">Donnees Commerciales & Bureaux IDF</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem">
+          <!-- Col 1: Submarkets Cushman -->
+          <div>
+            <h4 style="color:#aa88ff;font-size:.85rem;margin-bottom:.75rem">Submarkets Cushman</h4>
+            <p style="color:#888;font-size:.78rem;margin-bottom:.5rem">Loyers bureaux IDF par submarket (source: MarketBeat T4 2025)</p>
+            <div id="ghSubmarketStatus" style="font-size:.8rem;margin-bottom:.5rem"><span style="color:#555">Chargement...</span></div>
+            <div class="drop-zone" id="dropZoneComm" style="padding:1rem;border-color:#aa88ff55">
+              <p style="font-size:.82rem">Glisser CSV Submarkets</p>
+              <p class="accepted" style="color:#aa88ff">submarkets_*.csv</p>
+              <input type="file" id="fileInputComm" accept=".csv" style="display:none" />
+            </div>
+          </div>
+          <!-- Col 2: Indices INSEE -->
+          <div>
+            <h4 style="color:#aa88ff;font-size:.85rem;margin-bottom:.75rem">Indices INSEE (ILC / ILAT / ICC)</h4>
+            <p style="color:#888;font-size:.78rem;margin-bottom:.5rem">Pour la revision triennale des baux commerciaux</p>
+            <div style="display:flex;flex-direction:column;gap:.5rem" id="inseePreview">
+              <div class="idx-card" style="padding:.6rem">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="color:#aa88ff;font-weight:600;font-size:.82rem">ILC</span>
+                  <span style="font-size:1.1rem;font-weight:700;color:#aa88ff" id="idxILCmini">-</span>
+                </div>
+                <div style="font-size:.7rem;color:#888">Baux commerciaux retail</div>
+              </div>
+              <div class="idx-card" style="padding:.6rem">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="color:#aa88ff;font-weight:600;font-size:.82rem">ILAT</span>
+                  <span style="font-size:1.1rem;font-weight:700;color:#aa88ff" id="idxILATmini">-</span>
+                </div>
+                <div style="font-size:.7rem;color:#888">Bureaux / activites tertiaires</div>
+              </div>
+              <div class="idx-card" style="padding:.6rem">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="color:#aa88ff;font-weight:600;font-size:.82rem">ICC</span>
+                  <span style="font-size:1.1rem;font-weight:700;color:#aa88ff" id="idxICCmini">-</span>
+                </div>
+                <div style="font-size:.7rem;color:#888">Ancien ref. construction</div>
+              </div>
+            </div>
+            <button class="btn btn-secondary" id="btnFetchInsee" style="margin-top:.5rem;font-size:.78rem;padding:.35rem .8rem;border-color:#aa88ff;color:#aa88ff">Charger indices INSEE</button>
+          </div>
+          <!-- Col 3: Yields & recap -->
+          <div>
+            <h4 style="color:#aa88ff;font-size:.85rem;margin-bottom:.75rem">Yields de reference Q1 2026</h4>
+            <p style="color:#888;font-size:.78rem;margin-bottom:.5rem">Taux de capitalisation pour estimation loyer = prix DVF x yield</p>
+            <div style="font-size:.75rem;max-height:200px;overflow-y:auto">
+              <table style="width:100%;font-size:.72rem">
+                <tr style="color:#aa88ff"><th style="text-align:left;padding:.2rem .3rem">Zone</th><th class="num" style="padding:.2rem .3rem">Prime</th><th class="num" style="padding:.2rem .3rem">Sec.</th></tr>
+                <tr><td style="padding:.2rem .3rem">Paris QCA</td><td class="num" style="padding:.2rem .3rem">4,50%</td><td class="num" style="padding:.2rem .3rem">5,75%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Paris CO hors QCA</td><td class="num" style="padding:.2rem .3rem">5,00%</td><td class="num" style="padding:.2rem .3rem">6,50%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Paris Sud</td><td class="num" style="padding:.2rem .3rem">5,25%</td><td class="num" style="padding:.2rem .3rem">7,00%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Paris Nord-Est</td><td class="num" style="padding:.2rem .3rem">6,00%</td><td class="num" style="padding:.2rem .3rem">8,00%</td></tr>
+                <tr><td style="padding:.2rem .3rem">La Defense</td><td class="num" style="padding:.2rem .3rem">5,00%</td><td class="num" style="padding:.2rem .3rem">6,50%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Neuilly-Levallois</td><td class="num" style="padding:.2rem .3rem">5,00%</td><td class="num" style="padding:.2rem .3rem">6,25%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Boucle Sud (92)</td><td class="num" style="padding:.2rem .3rem">5,50%</td><td class="num" style="padding:.2rem .3rem">7,00%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Peri-Defense</td><td class="num" style="padding:.2rem .3rem">6,00%</td><td class="num" style="padding:.2rem .3rem">7,50%</td></tr>
+                <tr><td style="padding:.2rem .3rem">1re Couronne N</td><td class="num" style="padding:.2rem .3rem">6,50%</td><td class="num" style="padding:.2rem .3rem">8,00%</td></tr>
+                <tr><td style="padding:.2rem .3rem">1re Couronne S</td><td class="num" style="padding:.2rem .3rem">5,75%</td><td class="num" style="padding:.2rem .3rem">7,25%</td></tr>
+              </table>
+            </div>
+            <p style="color:#666;font-size:.68rem;margin-top:.4rem">Source: consensus BNP RE / CBRE / JLL / C&W</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ============ RESULTS ============ -->
@@ -206,6 +293,7 @@
           <div class="tab" data-sub="commune">Par Commune</div>
           <div class="tab" data-sub="loyer">Loyers</div>
           <div class="tab" data-sub="commercial" style="color:#ffaa00;border-color:#ffaa00">Commercial</div>
+          <div class="tab" data-sub="bureaux" style="color:#aa88ff;border-color:#aa88ff">Bureaux IDF</div>
         </div>
         <div class="tab-content active" id="sub-global">
           <div class="cards" id="globalCards"></div>
@@ -236,6 +324,46 @@
           </div>
           <div class="search-bar"><input id="commSearch" placeholder="Rechercher une commune..." /></div>
           <div class="table-wrap" style="max-height:60vh;overflow-y:auto"><table id="commTable"><thead></thead><tbody></tbody></table></div>
+        </div>
+        <!-- BUREAUX IDF -->
+        <div class="tab-content" id="sub-bureaux">
+          <div id="bureaux-loading" style="text-align:center;padding:2rem;color:#aa88ff">Chargement des donnees Cushman...</div>
+          <div id="bureaux-content" style="display:none">
+            <!-- Indices INSEE -->
+            <h4 style="color:#aa88ff;font-size:.9rem;margin-bottom:.75rem">Indices de revision (INSEE)</h4>
+            <div style="display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+              <div class="idx-card" style="min-width:160px">
+                <h4 style="color:#aa88ff">ILC</h4>
+                <div class="idx-val" style="color:#aa88ff" id="idxILC">-</div>
+                <div class="idx-sub">Baux commerciaux retail</div>
+                <div class="idx-sub" id="idxILCvar"></div>
+              </div>
+              <div class="idx-card" style="min-width:160px">
+                <h4 style="color:#aa88ff">ILAT</h4>
+                <div class="idx-val" style="color:#aa88ff" id="idxILAT">-</div>
+                <div class="idx-sub">Bureaux / activites tertiaires</div>
+                <div class="idx-sub" id="idxILATvar"></div>
+              </div>
+              <div class="idx-card" style="min-width:160px">
+                <h4 style="color:#aa88ff">ICC</h4>
+                <div class="idx-val" style="color:#aa88ff" id="idxICC">-</div>
+                <div class="idx-sub">Ancien ref. construction</div>
+                <div class="idx-sub" id="idxICCvar"></div>
+              </div>
+            </div>
+            <!-- Submarkets table -->
+            <h4 style="color:#aa88ff;font-size:.9rem;margin-bottom:.75rem">Submarkets IDF — Cushman & Wakefield T4 2025</h4>
+            <div class="table-wrap" style="max-height:50vh;overflow-y:auto;margin-bottom:1.5rem">
+              <table class="sm-table" id="smTable"><thead></thead><tbody></tbody></table>
+            </div>
+            <!-- Cross-check: commune → submarket + cap rate -->
+            <h4 style="color:#aa88ff;font-size:.9rem;margin-bottom:.75rem">Cross-check par commune — DVF cap rate vs Cushman</h4>
+            <p style="color:#888;font-size:.78rem;margin-bottom:.75rem">Loyer estime = prix vente DVF x yield secondaire. Compare au loyer 2nde main Cushman du submarket.</p>
+            <div class="search-bar"><input id="bureaux-search" placeholder="Rechercher une commune (Paris, Issy, Neuilly...)" /></div>
+            <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
+              <table class="sm-table" id="crossTable"><thead></thead><tbody></tbody></table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -281,6 +409,17 @@
         </div>
         <div id="exCommStatus" style="font-size:.82rem;margin-bottom:.75rem;display:none"></div>
         <pre id="commJsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#ffaa00"></pre>
+
+        <!-- BUREAUX CROSS-CHECK -->
+        <h3 style="color:#aa88ff;font-size:.95rem;margin:1.5rem 0 .75rem">Bureaux IDF — cross_check_bureaux.json</h3>
+        <div class="cards">
+          <div class="card"><div class="label">Communes mappees</div><div class="value" style="color:#aa88ff" id="exBureaux">-</div></div>
+        </div>
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+          <button class="extract-btn" id="btnDlBureaux">Telecharger</button>
+          <button class="extract-btn" id="btnCopyBureaux">Copier</button>
+        </div>
+        <pre id="bureaux-json-preview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#aa88ff"></pre>
       </div>
     </div>
   </div>
@@ -493,6 +632,83 @@ async function loadGhFiles() {
     ).join("") || '<span style="color:#555">Aucun fichier loyer</span>';
   } catch(e) { el.innerHTML = `<span style="color:#ff4444">${e.message}</span>`; }
 }
+
+// ===================================================================
+// COMMERCIAL DATA SECTION (onglet Donnees)
+// ===================================================================
+const dropZoneComm = document.getElementById("dropZoneComm");
+const fileInputComm = document.getElementById("fileInputComm");
+
+dropZoneComm.addEventListener("click", () => fileInputComm.click());
+dropZoneComm.addEventListener("dragover", e => { e.preventDefault(); dropZoneComm.classList.add("dragover"); });
+dropZoneComm.addEventListener("dragleave", () => dropZoneComm.classList.remove("dragover"));
+dropZoneComm.addEventListener("drop", e => { e.preventDefault(); dropZoneComm.classList.remove("dragover"); handleCommFile(e.dataTransfer.files[0]); });
+fileInputComm.addEventListener("change", () => { handleCommFile(fileInputComm.files[0]); fileInputComm.value = ""; });
+
+function handleCommFile(file) {
+  if (!file || !file.name.endsWith(".csv")) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    SUBMARKETS = parseSubmarketCSV(reader.result);
+    document.getElementById("ghSubmarketStatus").innerHTML =
+      `<span style="color:#aa88ff">${file.name} — ${SUBMARKETS.length} submarkets charges</span>`;
+  };
+  reader.readAsText(file);
+}
+
+// Load submarkets from GitHub on init
+async function loadGhSubmarkets() {
+  const el = document.getElementById("ghSubmarketStatus");
+  try {
+    const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data?ref=${BRANCH}`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const files = await r.json();
+    const smFiles = files.filter(f => /^submarkets_/i.test(f.name) && f.name.endsWith(".csv"));
+    if (smFiles.length > 0) {
+      el.innerHTML = smFiles.map(f =>
+        `<span style="color:#aa88ff;margin-right:.75rem">${f.name}</span>`
+      ).join("");
+    } else {
+      el.innerHTML = '<span style="color:#888">Aucun fichier submarkets</span>';
+    }
+  } catch(e) {
+    el.innerHTML = `<span style="color:#888">Hors ligne</span>`;
+  }
+}
+
+// INSEE mini fetch for the Donnees tab
+document.getElementById("btnFetchInsee").addEventListener("click", async () => {
+  const btn = document.getElementById("btnFetchInsee");
+  btn.disabled = true; btn.textContent = "Chargement...";
+  const series = [
+    { id: "001532540", el: "idxILCmini", name: "ILC" },
+    { id: "001617112", el: "idxILATmini", name: "ILAT" },
+    { id: "000008630", el: "idxICCmini", name: "ICC" },
+  ];
+  for (const s of series) {
+    try {
+      const url = `https://bdm.insee.fr/series/sdmx/data/SERIES_BDM/${s.id}?lastNObservations=1`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const xml = await resp.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xml, "text/xml");
+      const obs = doc.querySelectorAll("Obs");
+      if (obs.length >= 1) {
+        const lastObs = obs[obs.length - 1];
+        const val = lastObs.querySelector("ObsValue")?.getAttribute("value")
+                 || lastObs.getAttribute("OBS_VALUE")
+                 || extractObsValue(lastObs);
+        if (val) document.getElementById(s.el).textContent = parseFloat(val).toFixed(2);
+        else document.getElementById(s.el).textContent = "N/A";
+      }
+    } catch(e) {
+      document.getElementById(s.el).textContent = "Err";
+      console.warn(`INSEE ${s.name}:`, e.message);
+    }
+  }
+  btn.disabled = false; btn.textContent = "Charger indices INSEE";
+});
 
 // ===================================================================
 // ANALYZE: fetch depuis API DVF + loyers GitHub
@@ -1178,6 +1394,8 @@ function buildVillesJson(stats) {
 // ===================================================================
 function renderResults() {
   renderGlobal(); renderDept(); renderCommune(); renderLoyer(); renderCommercial();
+  // Bureaux IDF: load submarkets + cross-check with commercial data
+  loadBureauxIDF();
 }
 
 function renderGlobal() {
@@ -1356,6 +1574,14 @@ function renderExtract() {
     document.getElementById("exCommComm").textContent = COMMERCIAL_JSON.locaux.length;
     document.getElementById("commJsonPreview").textContent = JSON.stringify(COMMERCIAL_JSON, null, 4);
   }
+  // Bureaux cross-check preview (built async after loadBureauxIDF)
+  setTimeout(() => {
+    if (CROSS_DATA.length > 0) {
+      document.getElementById("exBureaux").textContent = CROSS_DATA.length;
+      const data = { cross_check: CROSS_DATA, submarkets: SUBMARKETS, source: "DVF + Cushman MarketBeat T4 2025" };
+      document.getElementById("bureaux-json-preview").textContent = JSON.stringify(data, null, 4);
+    }
+  }, 3000);
 }
 
 document.getElementById("btnDlJson").addEventListener("click", () => {
@@ -1392,6 +1618,19 @@ async function pushJson(repo, path) {
 function exMsg(m,ok){const el=document.getElementById("exStatus");el.style.display="block";el.style.color=ok?"#00d4aa":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
 function exCommMsg(m,ok){const el=document.getElementById("exCommStatus");el.style.display="block";el.style.color=ok?"#ffaa00":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
 
+// Bureaux extract
+document.getElementById("btnDlBureaux").addEventListener("click", () => {
+  if(!CROSS_DATA.length) return;
+  const data = { cross_check: CROSS_DATA, submarkets: SUBMARKETS, source: "DVF + Cushman MarketBeat T4 2025", generated: new Date().toISOString() };
+  const js=JSON.stringify(data,null,4);
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([js],{type:"application/json"}));a.download="cross_check_bureaux.json";a.click();
+});
+document.getElementById("btnCopyBureaux").addEventListener("click", async () => {
+  if(!CROSS_DATA.length) return;
+  const data = { cross_check: CROSS_DATA, submarkets: SUBMARKETS, source: "DVF + Cushman MarketBeat T4 2025", generated: new Date().toISOString() };
+  try{await navigator.clipboard.writeText(JSON.stringify(data,null,4));}catch(e){}
+});
+
 // Commercial extract
 document.getElementById("btnDlCommJson").addEventListener("click", () => {
   if(!COMMERCIAL_JSON) return;
@@ -1425,6 +1664,326 @@ async function pushJson2(repo,path,data,msgFn) {
 }
 
 // ===================================================================
+// BUREAUX IDF — Submarkets Cushman + Cap Rate + INSEE
+// ===================================================================
+let SUBMARKETS = [];
+let CROSS_DATA = [];
+
+// Yields secondaires calibrés Q1 2026 (source: consensus brokers)
+const YIELDS_2026 = {
+  "Paris QCA":                       { prime: 0.0450, sec: 0.0575 },
+  "Paris Centre Ouest (hors QCA)":   { prime: 0.0500, sec: 0.0650 },
+  "Paris Sud":                       { prime: 0.0525, sec: 0.0700 },
+  "Paris Nord-Est":                   { prime: 0.0600, sec: 0.0800 },
+  "La Défense":                      { prime: 0.0500, sec: 0.0650 },
+  "Neuilly-Levallois":               { prime: 0.0500, sec: 0.0625 },
+  "Boucle Sud":                      { prime: 0.0550, sec: 0.0700 },
+  "Péri-Défense":                    { prime: 0.0600, sec: 0.0750 },
+  "Boucle Nord":                     { prime: 0.0650, sec: 0.0800 },
+  "Première Couronne Nord":          { prime: 0.0650, sec: 0.0800 },
+  "Première Couronne Est":           { prime: 0.0600, sec: 0.0750 },
+  "Première Couronne Sud":           { prime: 0.0575, sec: 0.0725 },
+  "Deuxième Couronne Sud":           { prime: 0.0700, sec: 0.0850 },
+  "Ville Nouvelle Saint-Quentin-en-Yvelines": { prime: 0.0700, sec: 0.0850 },
+  "Ville Nouvelle Marne-la-Vallée":  { prime: 0.0700, sec: 0.0850 },
+  "Ville Nouvelle Cergy":            { prime: 0.0750, sec: 0.0900 },
+  "Pôle de Roissy":                  { prime: 0.0700, sec: 0.0850 },
+  "Reste Deuxième Couronne":         { prime: 0.0750, sec: 0.0900 },
+};
+
+// Mapping commune (normalisé) → submarket Cushman
+const COMMUNE_SUBMARKET = {};
+function initCommuneMapping() {
+  // Paris arrondissements
+  const qca = ["PARIS 1ER","PARIS 2EME","PARIS 8EME","PARIS 9EME","PARIS 16EME","PARIS 17EME"];
+  const centreOuest = ["PARIS 5EME","PARIS 6EME","PARIS 7EME","PARIS 15EME"];
+  const sud = ["PARIS 12EME","PARIS 13EME","PARIS 14EME"];
+  const nordEst = ["PARIS 3EME","PARIS 4EME","PARIS 10EME","PARIS 11EME","PARIS 18EME","PARIS 19EME","PARIS 20EME"];
+
+  qca.forEach(c => COMMUNE_SUBMARKET[c] = "Paris QCA");
+  centreOuest.forEach(c => COMMUNE_SUBMARKET[c] = "Paris Centre Ouest (hors QCA)");
+  sud.forEach(c => COMMUNE_SUBMARKET[c] = "Paris Sud");
+  nordEst.forEach(c => COMMUNE_SUBMARKET[c] = "Paris Nord-Est");
+
+  // Croissant Ouest 92
+  const defense = ["PUTEAUX","COURBEVOIE"];
+  const neuillyLevallois = ["NEUILLY SUR SEINE","LEVALLOIS PERRET"];
+  const boucleSud = ["ISSY LES MOULINEAUX","BOULOGNE BILLANCOURT","MEUDON","CLAMART","VANVES","MALAKOFF","MONTROUGE","CHATILLON","CHAVILLE","SEVRES","SAINT CLOUD","VILLE D AVRAY"];
+  const periDefense = ["NANTERRE","RUEIL MALMAISON","SURESNES","COLOMBES","LA GARENNE COLOMBES","BOIS COLOMBES"];
+  const boucleNord = ["CLICHY","ASNIERES SUR SEINE","GENNEVILLIERS","VILLENEUVE LA GARENNE"];
+
+  defense.forEach(c => COMMUNE_SUBMARKET[c] = "La Défense");
+  neuillyLevallois.forEach(c => COMMUNE_SUBMARKET[c] = "Neuilly-Levallois");
+  boucleSud.forEach(c => COMMUNE_SUBMARKET[c] = "Boucle Sud");
+  periDefense.forEach(c => COMMUNE_SUBMARKET[c] = "Péri-Défense");
+  boucleNord.forEach(c => COMMUNE_SUBMARKET[c] = "Boucle Nord");
+
+  // Première couronne
+  const pc_nord = ["SAINT DENIS","AUBERVILLIERS","SAINT OUEN SUR SEINE","SAINT OUEN","PANTIN","BOBIGNY","DRANCY","EPINAY SUR SEINE","VILLETANEUSE","PIERREFITTE SUR SEINE","STAINS","LA COURNEUVE","LE BOURGET","DUGNY"];
+  const pc_est = ["MONTREUIL","BAGNOLET","LES LILAS","LE PRE SAINT GERVAIS","ROMAINVILLE","NOISY LE SEC","BONDY","ROSNY SOUS BOIS","VINCENNES","SAINT MANDE","FONTENAY SOUS BOIS","NOGENT SUR MARNE","LE PERREUX SUR MARNE","BRY SUR MARNE","JOINVILLE LE PONT","SAINT MAURICE","CHARENTON LE PONT"];
+  const pc_sud = ["IVRY SUR SEINE","VITRY SUR SEINE","VILLEJUIF","KREMLIN BICETRE","GENTILLY","CACHAN","ARCUEIL","LE KREMLIN BICETRE","CHOISY LE ROI","THIAIS","ORLY","CHEVILLY LARUE","FRESNES","L HAY LES ROSES","RUNGIS","BOURG LA REINE","SCEAUX","FONTENAY AUX ROSES","LE PLESSIS ROBINSON","CHATENAY MALABRY","ANTONY","VELIZY VILLACOUBLAY"];
+
+  pc_nord.forEach(c => COMMUNE_SUBMARKET[c] = "Première Couronne Nord");
+  pc_est.forEach(c => COMMUNE_SUBMARKET[c] = "Première Couronne Est");
+  pc_sud.forEach(c => COMMUNE_SUBMARKET[c] = "Première Couronne Sud");
+
+  // Fallback: PARIS seul → TOTAL PARIS
+  COMMUNE_SUBMARKET["PARIS"] = "Paris QCA";
+}
+initCommuneMapping();
+
+function getSubmarket(communeName) {
+  const n = norm(communeName);
+  // Direct match
+  if (COMMUNE_SUBMARKET[n]) return COMMUNE_SUBMARKET[n];
+  // Fuzzy: try removing accents/extra words
+  for (const [k, v] of Object.entries(COMMUNE_SUBMARKET)) {
+    if (n.includes(k) || k.includes(n)) return v;
+  }
+  return null;
+}
+
+function parseSubmarketCSV(text) {
+  const lines = text.trim().split("\n");
+  const headers = lines[0].split(";");
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(";");
+    const obj = {};
+    headers.forEach((h, j) => { obj[h.trim()] = vals[j] ? vals[j].trim() : ""; });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+async function loadBureauxIDF() {
+  try {
+    // 1) Load submarkets CSV from GitHub
+    const smResp = await fetch(RAW + "/data/submarkets_idf_t4_2025.csv");
+    if (!smResp.ok) throw new Error("submarkets CSV: HTTP " + smResp.status);
+    const smText = await smResp.text();
+    SUBMARKETS = parseSubmarketCSV(smText);
+    renderSubmarketsTable();
+
+    // 2) Fetch INSEE indices (ILC, ILAT, ICC)
+    fetchInseeIndices();
+
+    // 3) Build cross-check if commercial data available
+    if (COMMERCIAL_JSON && COMMERCIAL_JSON.locaux.length > 0) {
+      buildCrossCheck();
+    }
+
+    document.getElementById("bureaux-loading").style.display = "none";
+    document.getElementById("bureaux-content").style.display = "block";
+  } catch(e) {
+    document.getElementById("bureaux-loading").innerHTML =
+      `<span style="color:#ff4444">Erreur: ${e.message}</span>`;
+    console.error("Bureaux IDF:", e);
+  }
+}
+
+function renderSubmarketsTable() {
+  const thead = document.querySelector("#smTable thead");
+  const tbody = document.querySelector("#smTable tbody");
+
+  thead.innerHTML = `<tr>
+    <th>Submarket</th>
+    <th class="num">Vacance %</th>
+    <th class="num">Loyer prime</th>
+    <th class="num">Loyer 1re main</th>
+    <th class="num">Loyer 2de main</th>
+    <th class="num">Yield prime</th>
+    <th class="num">Yield sec.</th>
+    <th class="num">Offre m²</th>
+    <th class="num">Demande m²</th>
+  </tr>`;
+
+  tbody.innerHTML = SUBMARKETS.map(sm => {
+    const name = sm.submarket;
+    const isTotal = name.startsWith("TOTAL");
+    const y = YIELDS_2026[name];
+    const cls = isTotal ? ' class="sm-row-total"' : '';
+    return `<tr${cls}>
+      <td class="sm-name" title="${name}">${name}</td>
+      <td class="num">${sm.taux_vacance_pct ? sm.taux_vacance_pct + "%" : "-"}</td>
+      <td class="num" style="color:#aa88ff;font-weight:600">${sm.loyer_prime_eur_m2_an ? parseInt(sm.loyer_prime_eur_m2_an).toLocaleString("fr") + " EUR" : "-"}</td>
+      <td class="num">${sm.loyer_moyen_1ere_main_eur_m2_an ? parseInt(sm.loyer_moyen_1ere_main_eur_m2_an).toLocaleString("fr") + " EUR" : "-"}</td>
+      <td class="num">${sm.loyer_moyen_2eme_main_eur_m2_an ? parseInt(sm.loyer_moyen_2eme_main_eur_m2_an).toLocaleString("fr") + " EUR" : "-"}</td>
+      <td class="num">${y ? (y.prime * 100).toFixed(2) + "%" : "-"}</td>
+      <td class="num">${y ? (y.sec * 100).toFixed(2) + "%" : "-"}</td>
+      <td class="num">${sm.offre_immediate_m2 ? parseInt(sm.offre_immediate_m2).toLocaleString("fr") : "-"}</td>
+      <td class="num">${sm.demande_placee_m2 ? parseInt(sm.demande_placee_m2).toLocaleString("fr") : "-"}</td>
+    </tr>`;
+  }).join("");
+}
+
+async function fetchInseeIndices() {
+  // ILC: 001532540, ILAT: 001617112, ICC: 000008630
+  const series = [
+    { id: "001532540", el: "idxILC", varEl: "idxILCvar", name: "ILC" },
+    { id: "001617112", el: "idxILAT", varEl: "idxILATvar", name: "ILAT" },
+    { id: "000008630", el: "idxICC", varEl: "idxICCvar", name: "ICC" },
+  ];
+
+  for (const s of series) {
+    try {
+      const url = `https://bdm.insee.fr/series/sdmx/data/SERIES_BDM/${s.id}?lastNObservations=2`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const xml = await resp.text();
+
+      // Parse SDMX XML to extract last observation
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xml, "text/xml");
+      const obs = doc.querySelectorAll("Obs");
+      if (obs.length >= 1) {
+        const lastObs = obs[obs.length - 1];
+        const val = lastObs.querySelector("ObsValue")?.getAttribute("value")
+                 || lastObs.getAttribute("OBS_VALUE")
+                 || extractObsValue(lastObs);
+        const period = lastObs.querySelector("ObsDimension")?.getAttribute("value")
+                    || lastObs.getAttribute("TIME_PERIOD")
+                    || extractObsPeriod(lastObs);
+
+        if (val) {
+          document.getElementById(s.el).textContent = parseFloat(val).toFixed(2);
+          if (period) {
+            document.getElementById(s.varEl).textContent = "Periode: " + period;
+          }
+        }
+
+        // Variation if 2 obs
+        if (obs.length >= 2) {
+          const prevObs = obs[obs.length - 2];
+          const prevVal = prevObs.querySelector("ObsValue")?.getAttribute("value")
+                       || prevObs.getAttribute("OBS_VALUE")
+                       || extractObsValue(prevObs);
+          if (val && prevVal) {
+            const variation = ((parseFloat(val) / parseFloat(prevVal) - 1) * 100).toFixed(2);
+            const sign = variation >= 0 ? "+" : "";
+            document.getElementById(s.varEl).textContent += ` (${sign}${variation}% t/t)`;
+          }
+        }
+      }
+    } catch(e) {
+      console.warn(`INSEE ${s.name}:`, e.message);
+      document.getElementById(s.el).textContent = "N/A";
+      document.getElementById(s.varEl).textContent = "API non dispo (CORS)";
+    }
+  }
+}
+
+// SDMX XML parsing helpers — structure varies
+function extractObsValue(obsNode) {
+  // Try generic:value child
+  for (const child of obsNode.children) {
+    if (child.localName === "ObsValue" || child.localName === "value") {
+      return child.getAttribute("value") || child.textContent;
+    }
+  }
+  return null;
+}
+function extractObsPeriod(obsNode) {
+  for (const child of obsNode.children) {
+    if (child.localName === "ObsDimension" || child.localName === "Time") {
+      return child.getAttribute("value") || child.textContent;
+    }
+  }
+  return null;
+}
+
+function buildCrossCheck() {
+  CROSS_DATA = [];
+  if (!COMMERCIAL_JSON || !COMMERCIAL_JSON.locaux) return;
+
+  for (const loc of COMMERCIAL_JSON.locaux) {
+    const sm = getSubmarket(loc.nom);
+    if (!sm) continue;
+
+    const smData = SUBMARKETS.find(s => s.submarket === sm);
+    const yields = YIELDS_2026[sm];
+    if (!smData || !yields) continue;
+
+    // Use all surface segments to get an average prix/m²
+    const segs = Object.entries(loc.surfaces);
+    if (segs.length === 0) continue;
+
+    const totalTx = segs.reduce((s, [, d]) => s + (d.nb_transactions || 0), 0);
+    const avgPrix = segs.reduce((s, [, d]) => s + (d.prix_m2 || 0) * (d.nb_transactions || 1), 0) /
+                    segs.reduce((s, [, d]) => s + (d.nb_transactions || 1), 0);
+
+    // Loyer estimé via cap rate (yield secondaire)
+    const loyerCapRate = avgPrix * yields.sec;
+
+    // Loyer Cushman 2nde main
+    const loyerCushman = parseFloat(smData.loyer_moyen_2eme_main_eur_m2_an) || null;
+
+    // Ecart
+    let ecart = null, ecartClass = "cross-ok";
+    if (loyerCushman && loyerCapRate > 0) {
+      ecart = ((loyerCapRate / loyerCushman) - 1) * 100;
+      if (Math.abs(ecart) > 30) ecartClass = "cross-bad";
+      else if (Math.abs(ecart) > 15) ecartClass = "cross-warn";
+    }
+
+    CROSS_DATA.push({
+      commune: loc.nom,
+      dept: loc.departement,
+      submarket: sm,
+      prix_dvf: Math.round(avgPrix),
+      yield_sec: yields.sec,
+      loyer_caprate: Math.round(loyerCapRate),
+      loyer_cushman: loyerCushman ? Math.round(loyerCushman) : null,
+      ecart,
+      ecartClass,
+      nb_tx: totalTx,
+    });
+  }
+
+  CROSS_DATA.sort((a, b) => a.commune.localeCompare(b.commune));
+  renderCrossTable();
+}
+
+function renderCrossTable(filter) {
+  let rows = [...CROSS_DATA];
+  if (filter) { const f = filter.toLowerCase(); rows = rows.filter(r => r.commune.toLowerCase().includes(f) || r.submarket.toLowerCase().includes(f)); }
+
+  const thead = document.querySelector("#crossTable thead");
+  const tbody = document.querySelector("#crossTable tbody");
+
+  thead.innerHTML = `<tr>
+    <th>Commune</th>
+    <th>Dept</th>
+    <th>Submarket</th>
+    <th class="num">Prix DVF /m²</th>
+    <th class="num">Yield sec.</th>
+    <th class="num">Loyer cap rate</th>
+    <th class="num">Loyer Cushman 2M</th>
+    <th class="num">Ecart</th>
+    <th class="num">Tx DVF</th>
+  </tr>`;
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;padding:1.5rem">Lancer une analyse avec des departements IDF (75, 92, 93, 94) pour voir le cross-check</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td>${r.commune}</td>
+    <td>${r.dept}</td>
+    <td class="sm-name" title="${r.submarket}" style="color:#aa88ff">${r.submarket}</td>
+    <td class="num">${r.prix_dvf.toLocaleString("fr")} EUR</td>
+    <td class="num">${(r.yield_sec * 100).toFixed(2)}%</td>
+    <td class="num" style="color:#aa88ff;font-weight:600">${r.loyer_caprate.toLocaleString("fr")} EUR</td>
+    <td class="num">${r.loyer_cushman ? r.loyer_cushman.toLocaleString("fr") + " EUR" : "-"}</td>
+    <td class="num ${r.ecartClass}">${r.ecart != null ? (r.ecart >= 0 ? "+" : "") + r.ecart.toFixed(1) + "%" : "-"}</td>
+    <td class="num">${r.nb_tx}</td>
+  </tr>`).join("");
+}
+
+document.getElementById("bureaux-search").addEventListener("input", e => renderCrossTable(e.target.value));
+
+// ===================================================================
 // HELPERS
 // ===================================================================
 function fmt(v) { return v != null ? Math.round(v).toLocaleString("fr") + " EUR" : "-"; }
@@ -1433,6 +1992,7 @@ function fmt(v) { return v != null ? Math.round(v).toLocaleString("fr") + " EUR"
 // INIT
 // ===================================================================
 loadGhFiles();
+loadGhSubmarkets();
 </script>
 </body>
 </html>
