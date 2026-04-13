@@ -440,6 +440,27 @@
         </div>
         <div id="exRefStatus" style="font-size:.82rem;margin-bottom:.75rem;display:none"></div>
         <pre id="refJsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#ff6644"></pre>
+
+        <!-- BUREAUX PAR ADRESSE -->
+        <h3 style="color:#00ccff;font-size:.95rem;margin:1.5rem 0 .75rem">Bureaux par adresse — bureaux_adresses.json</h3>
+        <p style="color:#888;font-size:.78rem;margin-bottom:.75rem">Toutes les transactions DVF bureaux avec adresse complete (n° + rue + ville), loyers CBRE et Cushman separes</p>
+        <div class="cards">
+          <div class="card"><div class="label">Transactions</div><div class="value" style="color:#00ccff" id="exBxTx">-</div></div>
+          <div class="card"><div class="label">Villes</div><div class="value" style="color:#00ccff" id="exBxVilles">-</div></div>
+          <div class="card"><div class="label">Avec CBRE</div><div class="value" style="color:#00ccff" id="exBxCbre">-</div></div>
+          <div class="card"><div class="label">Avec Cushman</div><div class="value" style="color:#00ccff" id="exBxCush">-</div></div>
+        </div>
+        <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+          <button class="extract-btn" id="btnDlBxJson">Telecharger</button>
+          <button class="extract-btn" id="btnCopyBxJson">Copier</button>
+          <button class="extract-btn push" id="btnPushBxDVF" style="background:#00ccff;color:#0a0e1a">Push DVFMAJ</button>
+          <div style="display:flex;align-items:center;gap:.4rem;flex:1;min-width:250px">
+            <input id="pushBxPath" type="text" placeholder="Bencode92/studyforge/contents/data/bureaux_adresses.json" style="flex:1;background:#161b2e;border:1px solid #2a3050;color:#e0e0e0;padding:.45rem .6rem;border-radius:6px;font-size:.8rem" />
+            <button class="extract-btn push" id="btnPushBxOther" style="background:#00ccff;color:#0a0e1a">Push</button>
+          </div>
+        </div>
+        <div id="exBxStatus" style="font-size:.82rem;margin-bottom:.75rem;display:none"></div>
+        <pre id="bxJsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#00ccff"></pre>
       </div>
     </div>
   </div>
@@ -490,6 +511,8 @@ let uploadFiles = new Map();
 let STATS = []; // final analytics results
 let VILLES_JSON = null;
 let COMMERCIAL_JSON = null;
+let BUREAUX_RAW = []; // raw commercial transactions with addresses
+let BUREAUX_ADRESSES_JSON = null;
 let REFERENTIEL_JSON = null;
 let sortCol = null, sortAsc = true;
 
@@ -801,6 +824,7 @@ async function runAnalysis() {
     setProgress(84, "Commercial: filtrage et agregation...");
     await sleep(10);
     const commData = transformCommercialPipeline(allRows);
+    BUREAUX_RAW = commData; // store raw for address-level export
 
     setProgress(88, `Résidentiel: ${venteData.length.toLocaleString("fr")} | Commercial: ${commData.length.toLocaleString("fr")}. Stats...`);
     await sleep(10);
@@ -825,6 +849,18 @@ async function runAnalysis() {
     VILLES_JSON = buildVillesJson(STATS);
     COMMERCIAL_JSON = buildCommercialJson(COMM_STATS);
     REFERENTIEL_JSON = buildReferentielBureaux(COMM_STATS);
+
+    // 8b) Load CBRE data for address-level export
+    try {
+      const cbreResp = await fetch(RAW + "/data/loyers_bureaux_cbre_2026.csv");
+      if (cbreResp.ok) { CBRE_DATA = parseSubmarketCSV(await cbreResp.text()); }
+    } catch(e) { console.warn("CBRE CSV:", e.message); }
+
+    // 9) Build bureaux par adresse JSON
+    BUREAUX_ADRESSES_JSON = buildBureauxAdressesJson();
+    if (BUREAUX_ADRESSES_JSON) {
+      console.log(`Bureaux par adresse: ${BUREAUX_ADRESSES_JSON.bureaux_par_adresse.nb_transactions_total} transactions, ${BUREAUX_ADRESSES_JSON.bureaux_par_adresse.nb_villes} villes`);
+    }
 
     const withLoyer = STATS.filter(s => s.Loyer != null).length;
     const totalStats = STATS.length;
@@ -862,7 +898,7 @@ function parseCSV(text) {
   const lines = text.trim().split("\n");
   const h = lines[0].split(",");
   const idx = {};
-  ["id_mutation","date_mutation","nature_mutation","valeur_fonciere","type_local","surface_reelle_bati","nombre_pieces_principales","nom_commune","code_departement","code_commune"].forEach(c => { idx[c] = h.indexOf(c); });
+  ["id_mutation","date_mutation","nature_mutation","valeur_fonciere","type_local","surface_reelle_bati","nombre_pieces_principales","nom_commune","code_departement","code_commune","adresse_numero","adresse_nom_voie","code_postal","longitude","latitude"].forEach(c => { idx[c] = h.indexOf(c); });
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
     const v = lines[i].split(",");
@@ -878,6 +914,11 @@ function parseCSV(text) {
       commune: (v[idx.nom_commune] || "").replace(/"/g, ""),
       dept: (v[idx.code_departement] || "").replace(/"/g, ""),
       codeC: (v[idx.code_commune] || "").replace(/"/g, ""),
+      adresseNum: (v[idx.adresse_numero] || "").replace(/"/g, ""),
+      adresseVoie: (v[idx.adresse_nom_voie] || "").replace(/"/g, ""),
+      codePostal: (v[idx.code_postal] || "").replace(/"/g, ""),
+      lng: parseFloat(v[idx.longitude]) || null,
+      lat: parseFloat(v[idx.latitude]) || null,
     });
   }
   return rows;
@@ -1440,6 +1481,97 @@ function buildReferentielBureaux(commStats) {
 }
 
 // ===================================================================
+// BUILD BUREAUX PAR ADRESSE JSON
+// Toutes les transactions commerciales avec adresse complète
+// Groupées par ville → rue → numéro, avec loyers CBRE + Cushman séparés
+// ===================================================================
+function buildBureauxAdressesJson() {
+  if (!BUREAUX_RAW || BUREAUX_RAW.length === 0) return null;
+
+  // Group by ville
+  const villes = {};
+  for (const r of BUREAUX_RAW) {
+    const ville = r.commune || "INCONNU";
+    const rue = r.adresseVoie || "ADRESSE INCONNUE";
+    const num = r.adresseNum || "";
+    const adresse = (num ? num + " " : "") + rue;
+
+    if (!villes[ville]) {
+      const sm = getSubmarket(ville);
+      const cbreSecteur = getCbreSecteur(ville);
+      const cbre = getCbreData(cbreSecteur);
+      const cushData = sm ? CUSHMAN_DATA[sm] : null;
+      const yields = sm ? YIELDS_2026[sm] : null;
+
+      villes[ville] = {
+        nom: ville,
+        departement: r.dept,
+        code_postal: r.codePostal || null,
+        code_commune: r.codeC,
+        // CBRE (séparé)
+        ref_cbre: cbre ? {
+          secteur: cbreSecteur,
+          usage_min: parseInt(cbre.usage_min) || null,
+          usage_max: parseInt(cbre.usage_max) || null,
+          renove_min: parseInt(cbre.renove_min) || null,
+          renove_max: parseInt(cbre.renove_max) || null,
+          neuf_min: parseInt(cbre.neuf_min) || null,
+          neuf_max: parseInt(cbre.neuf_max) || null,
+        } : null,
+        // Cushman (séparé)
+        ref_cushman: cushData ? {
+          submarket: sm,
+          loyer_prime: cushData.loyer_prime,
+          loyer_1re_main: cushData.loyer_1re_main,
+          loyer_2de_main: cushData.loyer_2de_main,
+          taux_vacance: cushData.taux_vacance,
+        } : null,
+        // Yield
+        yield_prime: yields ? yields.prime : null,
+        yield_secondaire: yields ? yields.sec : null,
+        transactions: [],
+      };
+    }
+
+    const pm2 = r.pm2;
+    const yields = villes[ville].yield_secondaire;
+    const loyerEstime = yields ? Math.round(pm2 * yields) : null;
+
+    villes[ville].transactions.push({
+      adresse: adresse,
+      numero: num,
+      voie: rue,
+      date: r.date,
+      prix_total: Math.round(r.vf),
+      surface_m2: Math.round(r.surf * 10) / 10,
+      prix_m2: Math.round(pm2),
+      segment: r.bucket,
+      loyer_estime_m2_an: loyerEstime,
+      coordonnees: (r.lng && r.lat) ? { lng: r.lng, lat: r.lat } : null,
+    });
+  }
+
+  // Sort transactions by street within each ville
+  for (const v of Object.values(villes)) {
+    v.transactions.sort((a, b) => a.voie.localeCompare(b.voie) || a.numero.localeCompare(b.numero));
+    v.nb_transactions = v.transactions.length;
+  }
+
+  return {
+    bureaux_par_adresse: {
+      date_extraction: new Date().toISOString().split("T")[0],
+      source_prix: "DVF data.gouv.fr (transactions réelles)",
+      source_loyers_cbre: "CBRE Prix des loyers de bureaux IDF, 1er janvier 2026",
+      source_loyers_cushman: "Cushman & Wakefield MarketBeat Bureaux IDF T4 2025",
+      yields_reference: "Consensus expert Q1 2026",
+      nb_transactions_total: BUREAUX_RAW.length,
+      nb_villes: Object.keys(villes).length,
+      villes: Object.values(villes).sort((a, b) => a.nom.localeCompare(b.nom)),
+    }
+  };
+}
+
+// ===================================================================
 // COMMERCIAL PIPELINE — simple et propre, pas de beta, pas de décote
 // ===================================================================
 function transformCommercialPipeline(rawRows) {
@@ -1455,18 +1587,23 @@ function transformCommercialPipeline(rawRows) {
   const groups = new Map();
   for (const r of filtered) {
     let g = groups.get(r.id);
-    if (!g) { g = { n:0, vf:r.vf, surf:0, date:r.date, commune:r.commune, dept:r.dept, codeC:r.codeC }; groups.set(r.id, g); }
+    if (!g) { g = { n:0, vf:r.vf, surf:0, date:r.date, commune:r.commune, dept:r.dept, codeC:r.codeC, adresseNum:r.adresseNum, adresseVoie:r.adresseVoie, codePostal:r.codePostal, lng:r.lng, lat:r.lat }; groups.set(r.id, g); }
     g.n++; g.surf += r.surf;
     if (r.vf > 0) g.vf = r.vf;
     if (r.date > g.date) g.date = r.date;
     if (r.commune) g.commune = r.commune;
     if (r.dept) g.dept = r.dept;
     if (r.codeC) g.codeC = r.codeC;
+    if (r.adresseNum) g.adresseNum = r.adresseNum;
+    if (r.adresseVoie) g.adresseVoie = r.adresseVoie;
+    if (r.codePostal) g.codePostal = r.codePostal;
+    if (r.lng) g.lng = r.lng;
+    if (r.lat) g.lat = r.lat;
   }
 
   // 3) Single-lot, surface >= 9, prix valide
   const muts = [];
-  for (const [, g] of groups) {
+  for (const [id, g] of groups) {
     if (g.n !== 1 || g.surf < 9) continue;
     const pm2 = g.vf / g.surf;
     if (pm2 < 500 || pm2 > 30000) continue; // exclure aberrations
@@ -1477,7 +1614,7 @@ function transformCommercialPipeline(rawRows) {
     let bucket = null;
     for (const b of COMM_BUCKETS) { if (g.surf >= b.min && g.surf < b.max) { bucket = b.id; break; } }
     if (!bucket) continue;
-    muts.push({ dept:g.dept, codeC:g.codeC, commune:g.commune, bucket, pm2, surf:g.surf, ageDays, tw, w:tw>0?tw:1.0 });
+    muts.push({ id, dept:g.dept, codeC:g.codeC, commune:g.commune, bucket, pm2, surf:g.surf, ageDays, tw, w:tw>0?tw:1.0, adresseNum:g.adresseNum||"", adresseVoie:g.adresseVoie||"", codePostal:g.codePostal||"", vf:g.vf, date:g.date, lng:g.lng, lat:g.lat });
   }
 
   // 4) Trimming MAD par (dept × bucket)
@@ -1777,6 +1914,19 @@ function renderExtract() {
     document.getElementById("exRefCush").textContent = withCush + "/" + ref.communes.length;
     document.getElementById("refJsonPreview").textContent = JSON.stringify(REFERENTIEL_JSON, null, 4);
   }
+  // Bureaux par adresse
+  if (BUREAUX_ADRESSES_JSON) {
+    const bx = BUREAUX_ADRESSES_JSON.bureaux_par_adresse;
+    document.getElementById("exBxTx").textContent = bx.nb_transactions_total;
+    document.getElementById("exBxVilles").textContent = bx.nb_villes;
+    const withCbre = bx.villes.filter(v => v.ref_cbre != null).length;
+    const withCush = bx.villes.filter(v => v.ref_cushman != null).length;
+    document.getElementById("exBxCbre").textContent = withCbre + "/" + bx.nb_villes;
+    document.getElementById("exBxCush").textContent = withCush + "/" + bx.nb_villes;
+    // Preview first 5 villes only (file can be huge)
+    const preview = { ...BUREAUX_ADRESSES_JSON, bureaux_par_adresse: { ...bx, villes: bx.villes.slice(0, 5), _note: `... ${bx.nb_villes} villes au total (apercu 5 premieres)` }};
+    document.getElementById("bxJsonPreview").textContent = JSON.stringify(preview, null, 4);
+  }
 }
 
 document.getElementById("btnDlJson").addEventListener("click", () => {
@@ -1833,6 +1983,28 @@ document.getElementById("btnPushRefOther").addEventListener("click", () => {
   if(!p){exRefMsg("Entrer le chemin",false);return;}
   const pts=p.split("/");if(pts.length<4){exRefMsg("Format: owner/repo/contents/path/file.json",false);return;}
   pushJson2(pts[0]+"/"+pts[1],pts.slice(2).join("/").replace(/^contents\//,""),REFERENTIEL_JSON,exRefMsg);
+});
+
+// Bureaux par adresse extract
+function exBxMsg(m,ok){const el=document.getElementById("exBxStatus");el.style.display="block";el.style.color=ok?"#00ccff":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
+
+document.getElementById("btnDlBxJson").addEventListener("click", () => {
+  if(!BUREAUX_ADRESSES_JSON) return;
+  const js=JSON.stringify(BUREAUX_ADRESSES_JSON,null,4);
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([js],{type:"application/json"}));a.download="bureaux_adresses.json";a.click();
+  exBxMsg("Telecharge",true);
+});
+document.getElementById("btnCopyBxJson").addEventListener("click", async () => {
+  if(!BUREAUX_ADRESSES_JSON) return;
+  try{await navigator.clipboard.writeText(JSON.stringify(BUREAUX_ADRESSES_JSON,null,4));exBxMsg("Copie !",true);}catch(e){exBxMsg("Erreur",false);}
+});
+document.getElementById("btnPushBxDVF").addEventListener("click", () => { if(BUREAUX_ADRESSES_JSON) pushJson2(REPO,"output/bureaux_adresses.json",BUREAUX_ADRESSES_JSON,exBxMsg); });
+document.getElementById("btnPushBxOther").addEventListener("click", () => {
+  if(!BUREAUX_ADRESSES_JSON) return;
+  const p=document.getElementById("pushBxPath").value.trim();
+  if(!p){exBxMsg("Entrer le chemin",false);return;}
+  const pts=p.split("/");if(pts.length<4){exBxMsg("Format: owner/repo/contents/path/file.json",false);return;}
+  pushJson2(pts[0]+"/"+pts[1],pts.slice(2).join("/").replace(/^contents\//,""),BUREAUX_ADRESSES_JSON,exBxMsg);
 });
 
 // Commercial extract
