@@ -263,16 +263,16 @@
             <div style="font-size:.75rem;max-height:200px;overflow-y:auto">
               <table style="width:100%;font-size:.72rem">
                 <tr style="color:#aa88ff"><th style="text-align:left;padding:.2rem .3rem">Zone</th><th class="num" style="padding:.2rem .3rem">Prime</th><th class="num" style="padding:.2rem .3rem">Sec.</th></tr>
-                <tr><td style="padding:.2rem .3rem">Paris QCA</td><td class="num" style="padding:.2rem .3rem">4,50%</td><td class="num" style="padding:.2rem .3rem">5,75%</td></tr>
-                <tr><td style="padding:.2rem .3rem">Paris CO hors QCA</td><td class="num" style="padding:.2rem .3rem">5,00%</td><td class="num" style="padding:.2rem .3rem">6,50%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Paris QCA</td><td class="num" style="padding:.2rem .3rem">4,75%</td><td class="num" style="padding:.2rem .3rem">6,25%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Paris CO hors QCA</td><td class="num" style="padding:.2rem .3rem">5,25%</td><td class="num" style="padding:.2rem .3rem">7,00%</td></tr>
                 <tr><td style="padding:.2rem .3rem">Paris Sud</td><td class="num" style="padding:.2rem .3rem">5,25%</td><td class="num" style="padding:.2rem .3rem">7,00%</td></tr>
-                <tr><td style="padding:.2rem .3rem">Paris Nord-Est</td><td class="num" style="padding:.2rem .3rem">6,00%</td><td class="num" style="padding:.2rem .3rem">8,00%</td></tr>
-                <tr><td style="padding:.2rem .3rem">La Defense</td><td class="num" style="padding:.2rem .3rem">5,00%</td><td class="num" style="padding:.2rem .3rem">6,50%</td></tr>
-                <tr><td style="padding:.2rem .3rem">Neuilly-Levallois</td><td class="num" style="padding:.2rem .3rem">5,00%</td><td class="num" style="padding:.2rem .3rem">6,25%</td></tr>
-                <tr><td style="padding:.2rem .3rem">Boucle Sud (92)</td><td class="num" style="padding:.2rem .3rem">5,50%</td><td class="num" style="padding:.2rem .3rem">7,00%</td></tr>
-                <tr><td style="padding:.2rem .3rem">Peri-Defense</td><td class="num" style="padding:.2rem .3rem">6,00%</td><td class="num" style="padding:.2rem .3rem">7,50%</td></tr>
-                <tr><td style="padding:.2rem .3rem">1re Couronne N</td><td class="num" style="padding:.2rem .3rem">6,50%</td><td class="num" style="padding:.2rem .3rem">8,00%</td></tr>
-                <tr><td style="padding:.2rem .3rem">1re Couronne S</td><td class="num" style="padding:.2rem .3rem">5,75%</td><td class="num" style="padding:.2rem .3rem">7,25%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Paris Nord-Est</td><td class="num" style="padding:.2rem .3rem">6,50%</td><td class="num" style="padding:.2rem .3rem">8,75%</td></tr>
+                <tr><td style="padding:.2rem .3rem">La Defense</td><td class="num" style="padding:.2rem .3rem">5,25%</td><td class="num" style="padding:.2rem .3rem">7,00%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Neuilly-Levallois</td><td class="num" style="padding:.2rem .3rem">5,25%</td><td class="num" style="padding:.2rem .3rem">6,75%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Boucle Sud (92)</td><td class="num" style="padding:.2rem .3rem">5,75%</td><td class="num" style="padding:.2rem .3rem">7,50%</td></tr>
+                <tr><td style="padding:.2rem .3rem">Peri-Defense</td><td class="num" style="padding:.2rem .3rem">6,50%</td><td class="num" style="padding:.2rem .3rem">8,00%</td></tr>
+                <tr><td style="padding:.2rem .3rem">1re Couronne N</td><td class="num" style="padding:.2rem .3rem">7,00%</td><td class="num" style="padding:.2rem .3rem">9,00%</td></tr>
+                <tr><td style="padding:.2rem .3rem">1re Couronne S</td><td class="num" style="padding:.2rem .3rem">6,00%</td><td class="num" style="padding:.2rem .3rem">7,75%</td></tr>
               </table>
             </div>
             <p style="color:#666;font-size:.68rem;margin-top:.4rem">Source: consensus BNP RE / CBRE / JLL / C&W</p>
@@ -1670,25 +1670,26 @@ let SUBMARKETS = [];
 let CROSS_DATA = [];
 
 // Yields secondaires calibrés Q1 2026 (source: consensus brokers)
+// Yields calibrés Q1 2026 — corrigés validation expert (vacance élevée + incentives)
 const YIELDS_2026 = {
-  "Paris QCA":                       { prime: 0.0450, sec: 0.0575 },
-  "Paris Centre Ouest (hors QCA)":   { prime: 0.0500, sec: 0.0650 },
+  "Paris QCA":                       { prime: 0.0475, sec: 0.0625 },
+  "Paris Centre Ouest (hors QCA)":   { prime: 0.0525, sec: 0.0700 },
   "Paris Sud":                       { prime: 0.0525, sec: 0.0700 },
-  "Paris Nord-Est":                   { prime: 0.0600, sec: 0.0800 },
-  "La Défense":                      { prime: 0.0500, sec: 0.0650 },
-  "Neuilly-Levallois":               { prime: 0.0500, sec: 0.0625 },
-  "Boucle Sud":                      { prime: 0.0550, sec: 0.0700 },
-  "Péri-Défense":                    { prime: 0.0600, sec: 0.0750 },
-  "Boucle Nord":                     { prime: 0.0650, sec: 0.0800 },
-  "Première Couronne Nord":          { prime: 0.0650, sec: 0.0800 },
-  "Première Couronne Est":           { prime: 0.0600, sec: 0.0750 },
-  "Première Couronne Sud":           { prime: 0.0575, sec: 0.0725 },
-  "Deuxième Couronne Sud":           { prime: 0.0700, sec: 0.0850 },
-  "Ville Nouvelle Saint-Quentin-en-Yvelines": { prime: 0.0700, sec: 0.0850 },
-  "Ville Nouvelle Marne-la-Vallée":  { prime: 0.0700, sec: 0.0850 },
-  "Ville Nouvelle Cergy":            { prime: 0.0750, sec: 0.0900 },
-  "Pôle de Roissy":                  { prime: 0.0700, sec: 0.0850 },
-  "Reste Deuxième Couronne":         { prime: 0.0750, sec: 0.0900 },
+  "Paris Nord-Est":                   { prime: 0.0650, sec: 0.0875 },
+  "La Défense":                      { prime: 0.0525, sec: 0.0700 },
+  "Neuilly-Levallois":               { prime: 0.0525, sec: 0.0675 },
+  "Boucle Sud":                      { prime: 0.0575, sec: 0.0750 },
+  "Péri-Défense":                    { prime: 0.0650, sec: 0.0800 },
+  "Boucle Nord":                     { prime: 0.0700, sec: 0.0875 },
+  "Première Couronne Nord":          { prime: 0.0700, sec: 0.0900 },
+  "Première Couronne Est":           { prime: 0.0650, sec: 0.0800 },
+  "Première Couronne Sud":           { prime: 0.0600, sec: 0.0775 },
+  "Deuxième Couronne Sud":           { prime: 0.0750, sec: 0.0900 },
+  "Ville Nouvelle Saint-Quentin-en-Yvelines": { prime: 0.0750, sec: 0.0900 },
+  "Ville Nouvelle Marne-la-Vallée":  { prime: 0.0750, sec: 0.0900 },
+  "Ville Nouvelle Cergy":            { prime: 0.0800, sec: 0.0950 },
+  "Pôle de Roissy":                  { prime: 0.0750, sec: 0.0900 },
+  "Reste Deuxième Couronne":         { prime: 0.0800, sec: 0.0950 },
 };
 
 // Mapping commune (normalisé) → submarket Cushman
