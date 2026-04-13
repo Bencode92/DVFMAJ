@@ -351,14 +351,26 @@
                 <div class="idx-sub" id="idxICCvar"></div>
               </div>
             </div>
-            <!-- Submarkets table -->
+            <!-- CBRE loyers par secteur -->
+            <h4 style="color:#aa88ff;font-size:.9rem;margin-bottom:.75rem">Loyers bureaux CBRE — par secteur (jan. 2026)</h4>
+            <p style="color:#888;font-size:.78rem;margin-bottom:.5rem">EUR HT HC/m²/an. 3 categories : etat d'usage, renove, neuf/restructure.</p>
+            <div style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap">
+              <button class="btn btn-secondary cbreFilter active" data-cbre="all" onclick="filterCbre('all')" style="padding:.25rem .6rem;font-size:.75rem">Tous</button>
+              <button class="btn btn-secondary cbreFilter" data-cbre="Paris" onclick="filterCbre('Paris')" style="padding:.25rem .6rem;font-size:.75rem">Paris</button>
+              <button class="btn btn-secondary cbreFilter" data-cbre="IDF" onclick="filterCbre('IDF')" style="padding:.25rem .6rem;font-size:.75rem">IDF hors Paris</button>
+            </div>
+            <div class="search-bar"><input id="cbre-search" placeholder="Rechercher un secteur (Neuilly, 8e, Issy...)" /></div>
+            <div class="table-wrap" style="max-height:45vh;overflow-y:auto;margin-bottom:1.5rem">
+              <table class="sm-table" id="cbreTable"><thead></thead><tbody></tbody></table>
+            </div>
+            <!-- Submarkets Cushman -->
             <h4 style="color:#aa88ff;font-size:.9rem;margin-bottom:.75rem">Submarkets IDF — Cushman & Wakefield T4 2025</h4>
-            <div class="table-wrap" style="max-height:50vh;overflow-y:auto;margin-bottom:1.5rem">
+            <div class="table-wrap" style="max-height:40vh;overflow-y:auto;margin-bottom:1.5rem">
               <table class="sm-table" id="smTable"><thead></thead><tbody></tbody></table>
             </div>
-            <!-- Cross-check: commune → submarket + cap rate -->
-            <h4 style="color:#aa88ff;font-size:.9rem;margin-bottom:.75rem">Cross-check par commune — DVF cap rate vs Cushman</h4>
-            <p style="color:#888;font-size:.78rem;margin-bottom:.75rem">Loyer estime = prix vente DVF x yield secondaire. Compare au loyer 2nde main Cushman du submarket.</p>
+            <!-- Cross-check: commune → CBRE + cap rate -->
+            <h4 style="color:#aa88ff;font-size:.9rem;margin-bottom:.75rem">Cross-check par commune — DVF cap rate vs CBRE</h4>
+            <p style="color:#888;font-size:.78rem;margin-bottom:.75rem">Loyer estime = prix vente DVF x yield. Compare a la fourchette CBRE (etat d'usage) du secteur.</p>
             <div class="search-bar"><input id="bureaux-search" placeholder="Rechercher une commune (Paris, Issy, Neuilly...)" /></div>
             <div class="table-wrap" style="max-height:50vh;overflow-y:auto">
               <table class="sm-table" id="crossTable"><thead></thead><tbody></tbody></table>
@@ -672,13 +684,13 @@ async function loadGhSubmarkets() {
     const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data?ref=${BRANCH}`);
     if (!r.ok) throw new Error("HTTP " + r.status);
     const files = await r.json();
-    const smFiles = files.filter(f => /^submarkets_/i.test(f.name) && f.name.endsWith(".csv"));
+    const smFiles = files.filter(f => (/^submarkets_/i.test(f.name) || /^loyers_bureaux/i.test(f.name)) && f.name.endsWith(".csv"));
     if (smFiles.length > 0) {
       el.innerHTML = smFiles.map(f =>
         `<span style="color:#aa88ff;margin-right:.75rem">${f.name}</span>`
       ).join("");
     } else {
-      el.innerHTML = '<span style="color:#888">Aucun fichier submarkets</span>';
+      el.innerHTML = '<span style="color:#888">Aucun fichier commercial</span>';
     }
   } catch(e) {
     el.innerHTML = `<span style="color:#888">Hors ligne</span>`;
@@ -1859,7 +1871,9 @@ async function pushJson2(repo,path,data,msgFn) {
 // BUREAUX IDF — Submarkets Cushman + Cap Rate + INSEE
 // ===================================================================
 let SUBMARKETS = [];
+let CBRE_DATA = [];
 let CROSS_DATA = [];
+let cbreZoneFilter = "all";
 
 // Yields secondaires calibrés Q1 2026 (source: consensus brokers)
 // Yields calibrés Q1 2026 — corrigés validation expert (vacance élevée + incentives)
@@ -1958,10 +1972,20 @@ async function loadBureauxIDF() {
     SUBMARKETS = parseSubmarketCSV(smText);
     renderSubmarketsTable();
 
-    // 2) Fetch INSEE indices (ILC, ILAT, ICC)
+    // 2) Load CBRE loyers CSV from GitHub
+    try {
+      const cbreResp = await fetch(RAW + "/data/loyers_bureaux_cbre_2026.csv");
+      if (cbreResp.ok) {
+        const cbreText = await cbreResp.text();
+        CBRE_DATA = parseSubmarketCSV(cbreText);
+        renderCbreTable();
+      }
+    } catch(e) { console.warn("CBRE CSV:", e.message); }
+
+    // 3) Fetch INSEE indices (ILC, ILAT, ICC)
     fetchInseeIndices();
 
-    // 3) Build cross-check if commercial data available
+    // 4) Build cross-check if commercial data available
     if (COMMERCIAL_JSON && COMMERCIAL_JSON.locaux.length > 0) {
       buildCrossCheck();
     }
@@ -2008,6 +2032,186 @@ function renderSubmarketsTable() {
       <td class="num">${sm.demande_placee_m2 ? parseInt(sm.demande_placee_m2).toLocaleString("fr") : "-"}</td>
     </tr>`;
   }).join("");
+}
+
+// ===== CBRE TABLE =====
+window.filterCbre = (zone) => {
+  cbreZoneFilter = zone;
+  document.querySelectorAll(".cbreFilter").forEach(b => b.classList.remove("active"));
+  document.querySelector(`.cbreFilter[data-cbre="${zone}"]`).classList.add("active");
+  renderCbreTable(document.getElementById("cbre-search").value);
+};
+
+function renderCbreTable(filter) {
+  let rows = [...CBRE_DATA];
+  if (cbreZoneFilter !== "all") rows = rows.filter(r => r.zone === cbreZoneFilter);
+  if (filter) { const f = filter.toLowerCase(); rows = rows.filter(r => r.secteur.toLowerCase().includes(f)); }
+
+  const thead = document.querySelector("#cbreTable thead");
+  const tbody = document.querySelector("#cbreTable tbody");
+
+  thead.innerHTML = `<tr>
+    <th>Secteur</th><th>Zone</th>
+    <th class="num" colspan="2" style="text-align:center;color:#888">Etat d'usage</th>
+    <th class="num" colspan="2" style="text-align:center;color:#ffaa00">Renove</th>
+    <th class="num" colspan="2" style="text-align:center;color:#aa88ff">Neuf / Restruct.</th>
+  </tr>
+  <tr>
+    <th></th><th></th>
+    <th class="num" style="font-size:.68rem;color:#888">Min</th><th class="num" style="font-size:.68rem;color:#888">Max</th>
+    <th class="num" style="font-size:.68rem;color:#ffaa00">Min</th><th class="num" style="font-size:.68rem;color:#ffaa00">Max</th>
+    <th class="num" style="font-size:.68rem;color:#aa88ff">Min</th><th class="num" style="font-size:.68rem;color:#aa88ff">Max</th>
+  </tr>`;
+
+  tbody.innerHTML = rows.map(r => {
+    const u1 = r.usage_min ? parseInt(r.usage_min) : null;
+    const u2 = r.usage_max ? parseInt(r.usage_max) : null;
+    const rv1 = r.renove_min ? parseInt(r.renove_min) : null;
+    const rv2 = r.renove_max ? parseInt(r.renove_max) : null;
+    const n1 = r.neuf_min ? parseInt(r.neuf_min) : null;
+    const n2 = r.neuf_max ? parseInt(r.neuf_max) : null;
+    return `<tr>
+      <td class="sm-name" title="${r.secteur}">${r.secteur}</td>
+      <td style="color:#888;font-size:.72rem">${r.zone}</td>
+      <td class="num">${u1 ? u1 + " EUR" : "-"}</td>
+      <td class="num" style="font-weight:600">${u2 ? u2 + " EUR" : "-"}</td>
+      <td class="num" style="color:#ffaa00">${rv1 ? rv1 + " EUR" : "-"}</td>
+      <td class="num" style="color:#ffaa00;font-weight:600">${rv2 ? rv2 + " EUR" : "-"}</td>
+      <td class="num" style="color:#aa88ff">${n1 ? n1 + " EUR" : "-"}</td>
+      <td class="num" style="color:#aa88ff;font-weight:600">${n2 ? n2 + " EUR" : "-"}</td>
+    </tr>`;
+  }).join("");
+}
+document.getElementById("cbre-search").addEventListener("input", e => renderCbreTable(e.target.value));
+
+// ===== CBRE COMMUNE MAPPING =====
+// Maps normalized commune name → CBRE secteur name (more granular than Cushman)
+const COMMUNE_CBRE = {};
+function initCbreMapping() {
+  // Paris arrondissements → CBRE secteurs
+  COMMUNE_CBRE["PARIS 1ER"] = "1er (hors Vendôme)";
+  COMMUNE_CBRE["PARIS 2EME"] = "2e (hors Opéra/Madeleine)";
+  COMMUNE_CBRE["PARIS 3EME"] = "3e - 4e";
+  COMMUNE_CBRE["PARIS 4EME"] = "3e - 4e";
+  COMMUNE_CBRE["PARIS 5EME"] = "5e - 6e";
+  COMMUNE_CBRE["PARIS 6EME"] = "5e - 6e";
+  COMMUNE_CBRE["PARIS 7EME"] = "7e";
+  COMMUNE_CBRE["PARIS 8EME"] = "8e Ouest";
+  COMMUNE_CBRE["PARIS 9EME"] = "9e Sud";
+  COMMUNE_CBRE["PARIS 10EME"] = "10e";
+  COMMUNE_CBRE["PARIS 11EME"] = "11e";
+  COMMUNE_CBRE["PARIS 12EME"] = "12e Gare de Lyon - Bercy";
+  COMMUNE_CBRE["PARIS 13EME"] = "13e Autres secteurs";
+  COMMUNE_CBRE["PARIS 14EME"] = "14e";
+  COMMUNE_CBRE["PARIS 15EME"] = "15e";
+  COMMUNE_CBRE["PARIS 16EME"] = "16e Nord";
+  COMMUNE_CBRE["PARIS 17EME"] = "17e Centre";
+  COMMUNE_CBRE["PARIS 18EME"] = "18e";
+  COMMUNE_CBRE["PARIS 19EME"] = "19e";
+  COMMUNE_CBRE["PARIS 20EME"] = "20e";
+
+  // 92
+  COMMUNE_CBRE["PUTEAUX"] = "Puteaux (hors Défense)";
+  COMMUNE_CBRE["COURBEVOIE"] = "Courbevoie (hors Défense)";
+  COMMUNE_CBRE["NANTERRE"] = "Nanterre (autres)";
+  COMMUNE_CBRE["RUEIL MALMAISON"] = "Reste Rueil-Malmaison";
+  COMMUNE_CBRE["NEUILLY SUR SEINE"] = "Neuilly-sur-Seine";
+  COMMUNE_CBRE["LEVALLOIS PERRET"] = "Levallois-Perret";
+  COMMUNE_CBRE["SURESNES"] = "Suresnes";
+  COMMUNE_CBRE["SAINT CLOUD"] = "Saint-Cloud / Sèvres";
+  COMMUNE_CBRE["SEVRES"] = "Saint-Cloud / Sèvres";
+  COMMUNE_CBRE["ASNIERES SUR SEINE"] = "Asnières";
+  COMMUNE_CBRE["GENNEVILLIERS"] = "Gennevilliers";
+  COMMUNE_CBRE["CLICHY"] = "Clichy";
+  COMMUNE_CBRE["COLOMBES"] = "Colombes / Bois-Colombes / La Garenne Colombes";
+  COMMUNE_CBRE["BOIS COLOMBES"] = "Colombes / Bois-Colombes / La Garenne Colombes";
+  COMMUNE_CBRE["LA GARENNE COLOMBES"] = "Colombes / Bois-Colombes / La Garenne Colombes";
+  COMMUNE_CBRE["BOULOGNE BILLANCOURT"] = "Boulogne-Billancourt";
+  COMMUNE_CBRE["ISSY LES MOULINEAUX"] = "Issy-les-Moulineaux";
+  COMMUNE_CBRE["MEUDON"] = "Meudon (hors Meudon la Forêt)";
+  COMMUNE_CBRE["VANVES"] = "Vanves / Malakoff / Montrouge";
+  COMMUNE_CBRE["MALAKOFF"] = "Vanves / Malakoff / Montrouge";
+  COMMUNE_CBRE["MONTROUGE"] = "Vanves / Malakoff / Montrouge";
+  COMMUNE_CBRE["CHATILLON"] = "Châtillon, Bagneux, Arcueil, Cachan";
+  COMMUNE_CBRE["CLAMART"] = "Reste Hauts-de-Seine";
+  COMMUNE_CBRE["FONTENAY AUX ROSES"] = "Reste Hauts-de-Seine";
+  COMMUNE_CBRE["BOURG LA REINE"] = "Reste Hauts-de-Seine";
+  COMMUNE_CBRE["SCEAUX"] = "Reste Hauts-de-Seine";
+  COMMUNE_CBRE["CHAVILLE"] = "Reste Hauts-de-Seine";
+  COMMUNE_CBRE["VILLE D AVRAY"] = "Reste Hauts-de-Seine";
+  COMMUNE_CBRE["LE PLESSIS ROBINSON"] = "Reste Hauts-de-Seine";
+  COMMUNE_CBRE["CHATENAY MALABRY"] = "Reste Hauts-de-Seine";
+  COMMUNE_CBRE["VILLENEUVE LA GARENNE"] = "Gennevilliers";
+
+  // 93
+  COMMUNE_CBRE["SAINT OUEN SUR SEINE"] = "Saint-Ouen";
+  COMMUNE_CBRE["SAINT OUEN"] = "Saint-Ouen";
+  COMMUNE_CBRE["SAINT DENIS"] = "La Plaine St Denis";
+  COMMUNE_CBRE["AUBERVILLIERS"] = "Aubervilliers / Pantin";
+  COMMUNE_CBRE["PANTIN"] = "Aubervilliers / Pantin";
+  COMMUNE_CBRE["BOBIGNY"] = "Bobigny";
+  COMMUNE_CBRE["MONTREUIL"] = "Montreuil (hors bas Montreuil) / Bagnolet";
+  COMMUNE_CBRE["BAGNOLET"] = "Montreuil (hors bas Montreuil) / Bagnolet";
+  COMMUNE_CBRE["VINCENNES"] = "Vincennes / Saint-Mandé / Bas Montreuil";
+  COMMUNE_CBRE["SAINT MANDE"] = "Vincennes / Saint-Mandé / Bas Montreuil";
+  COMMUNE_CBRE["DRANCY"] = "Reste Seine-Saint-Denis";
+  COMMUNE_CBRE["LE BOURGET"] = "Reste Seine-Saint-Denis";
+  COMMUNE_CBRE["LA COURNEUVE"] = "Reste Seine-Saint-Denis";
+  COMMUNE_CBRE["STAINS"] = "Reste Seine-Saint-Denis";
+  COMMUNE_CBRE["EPINAY SUR SEINE"] = "Reste Seine-Saint-Denis";
+  COMMUNE_CBRE["NOISY LE SEC"] = "Reste Seine-Saint-Denis";
+  COMMUNE_CBRE["BONDY"] = "Reste Seine-Saint-Denis";
+  COMMUNE_CBRE["ROSNY SOUS BOIS"] = "Reste Seine-Saint-Denis";
+  COMMUNE_CBRE["LES LILAS"] = "Montreuil (hors bas Montreuil) / Bagnolet";
+  COMMUNE_CBRE["LE PRE SAINT GERVAIS"] = "Montreuil (hors bas Montreuil) / Bagnolet";
+  COMMUNE_CBRE["ROMAINVILLE"] = "Montreuil (hors bas Montreuil) / Bagnolet";
+
+  // 94
+  COMMUNE_CBRE["CHARENTON LE PONT"] = "Charenton le Pont";
+  COMMUNE_CBRE["SAINT MAURICE"] = "St Maurice, Joinville";
+  COMMUNE_CBRE["JOINVILLE LE PONT"] = "St Maurice, Joinville";
+  COMMUNE_CBRE["CRETEIL"] = "Créteil";
+  COMMUNE_CBRE["ALFORTVILLE"] = "Alfortville";
+  COMMUNE_CBRE["NOGENT SUR MARNE"] = "Nogent sur Marne";
+  COMMUNE_CBRE["FONTENAY SOUS BOIS"] = "Fontenay sous bois";
+  COMMUNE_CBRE["IVRY SUR SEINE"] = "Ivry-sur-Seine";
+  COMMUNE_CBRE["KREMLIN BICETRE"] = "Kremlin, Gentilly, Villejuif";
+  COMMUNE_CBRE["LE KREMLIN BICETRE"] = "Kremlin, Gentilly, Villejuif";
+  COMMUNE_CBRE["GENTILLY"] = "Kremlin, Gentilly, Villejuif";
+  COMMUNE_CBRE["VILLEJUIF"] = "Kremlin, Gentilly, Villejuif";
+  COMMUNE_CBRE["CACHAN"] = "Châtillon, Bagneux, Arcueil, Cachan";
+  COMMUNE_CBRE["ARCUEIL"] = "Châtillon, Bagneux, Arcueil, Cachan";
+  COMMUNE_CBRE["VITRY SUR SEINE"] = "Vitry sur Seine / Choisy";
+  COMMUNE_CBRE["CHOISY LE ROI"] = "Vitry sur Seine / Choisy";
+  COMMUNE_CBRE["MAISON ALFORT"] = "Maison-Alfort";
+  COMMUNE_CBRE["SAINT MAUR DES FOSSES"] = "St-Maur, Champigny";
+  COMMUNE_CBRE["CHAMPIGNY SUR MARNE"] = "St-Maur, Champigny";
+  COMMUNE_CBRE["LE PERREUX SUR MARNE"] = "Reste Val-de-Marne";
+  COMMUNE_CBRE["L HAY LES ROSES"] = "Reste Val-de-Marne";
+  COMMUNE_CBRE["BRY SUR MARNE"] = "Porte de Paris";
+  COMMUNE_CBRE["THIAIS"] = "Pôle Orly";
+  COMMUNE_CBRE["ORLY"] = "Pôle Orly";
+  COMMUNE_CBRE["CHEVILLY LARUE"] = "Pôle Orly";
+  COMMUNE_CBRE["RUNGIS"] = "Pôle Orly";
+  COMMUNE_CBRE["FRESNES"] = "Reste Val-de-Marne";
+  COMMUNE_CBRE["ANTONY"] = "Massy / Antony";
+  COMMUNE_CBRE["VELIZY VILLACOUBLAY"] = "Vélizy-Villacoublay / Meudon la Forêt";
+}
+initCbreMapping();
+
+function getCbreSecteur(communeName) {
+  const n = norm(communeName);
+  if (COMMUNE_CBRE[n]) return COMMUNE_CBRE[n];
+  // Fuzzy match
+  for (const [k, v] of Object.entries(COMMUNE_CBRE)) {
+    if (n.includes(k) || k.includes(n)) return v;
+  }
+  return null;
+}
+
+function getCbreData(secteurName) {
+  if (!secteurName || !CBRE_DATA.length) return null;
+  return CBRE_DATA.find(r => r.secteur === secteurName) || null;
 }
 
 async function fetchInseeIndices() {
@@ -2091,13 +2295,15 @@ function buildCrossCheck() {
 
   for (const loc of COMMERCIAL_JSON.locaux) {
     const sm = getSubmarket(loc.nom);
-    if (!sm) continue;
+    const yields = sm ? YIELDS_2026[sm] : null;
 
-    const smData = SUBMARKETS.find(s => s.submarket === sm);
-    const yields = YIELDS_2026[sm];
-    if (!smData || !yields) continue;
+    // CBRE lookup (plus granulaire)
+    const cbreSecteur = getCbreSecteur(loc.nom);
+    const cbre = getCbreData(cbreSecteur);
 
-    // Use all surface segments to get an average prix/m²
+    if (!sm && !cbre) continue;
+
+    // Use all surface segments to get a weighted average prix/m²
     const segs = Object.entries(loc.surfaces);
     if (segs.length === 0) continue;
 
@@ -2106,29 +2312,49 @@ function buildCrossCheck() {
                     segs.reduce((s, [, d]) => s + (d.nb_transactions || 1), 0);
 
     // Loyer estimé via cap rate (yield secondaire)
-    const loyerCapRate = avgPrix * yields.sec;
+    const yieldSec = yields ? yields.sec : 0.07;
+    const loyerCapRate = avgPrix * yieldSec;
 
-    // Loyer Cushman 2nde main
-    const loyerCushman = parseFloat(smData.loyer_moyen_2eme_main_eur_m2_an) || null;
+    // CBRE fourchettes (état d'usage = proxy secondaire)
+    const cbreMin = cbre && cbre.usage_min ? parseInt(cbre.usage_min) : null;
+    const cbreMax = cbre && cbre.usage_max ? parseInt(cbre.usage_max) : null;
+    const cbreMid = (cbreMin && cbreMax) ? Math.round((cbreMin + cbreMax) / 2) : null;
 
-    // Ecart
+    // Cushman fallback
+    const smData = sm ? SUBMARKETS.find(s => s.submarket === sm) : null;
+    const loyerCushman = smData ? (parseFloat(smData.loyer_moyen_2eme_main_eur_m2_an) || null) : null;
+
+    // Ecart vs CBRE mid (prioritaire) ou Cushman
+    const refLoyer = cbreMid || loyerCushman;
     let ecart = null, ecartClass = "cross-ok";
-    if (loyerCushman && loyerCapRate > 0) {
-      ecart = ((loyerCapRate / loyerCushman) - 1) * 100;
+    if (refLoyer && loyerCapRate > 0) {
+      ecart = ((loyerCapRate / refLoyer) - 1) * 100;
       if (Math.abs(ecart) > 30) ecartClass = "cross-bad";
       else if (Math.abs(ecart) > 15) ecartClass = "cross-warn";
+    }
+
+    // Dans la fourchette CBRE ?
+    let inRange = null;
+    if (cbreMin && cbreMax && loyerCapRate > 0) {
+      if (loyerCapRate >= cbreMin && loyerCapRate <= cbreMax) inRange = "ok";
+      else if (loyerCapRate < cbreMin) inRange = "bas";
+      else inRange = "haut";
     }
 
     CROSS_DATA.push({
       commune: loc.nom,
       dept: loc.departement,
-      submarket: sm,
+      submarket: sm || "-",
+      cbre_secteur: cbreSecteur || "-",
       prix_dvf: Math.round(avgPrix),
-      yield_sec: yields.sec,
+      yield_sec: yieldSec,
       loyer_caprate: Math.round(loyerCapRate),
+      cbre_min: cbreMin,
+      cbre_max: cbreMax,
       loyer_cushman: loyerCushman ? Math.round(loyerCushman) : null,
       ecart,
       ecartClass,
+      inRange,
       nb_tx: totalTx,
     });
   }
@@ -2139,37 +2365,47 @@ function buildCrossCheck() {
 
 function renderCrossTable(filter) {
   let rows = [...CROSS_DATA];
-  if (filter) { const f = filter.toLowerCase(); rows = rows.filter(r => r.commune.toLowerCase().includes(f) || r.submarket.toLowerCase().includes(f)); }
+  if (filter) { const f = filter.toLowerCase(); rows = rows.filter(r => r.commune.toLowerCase().includes(f) || r.cbre_secteur.toLowerCase().includes(f) || r.submarket.toLowerCase().includes(f)); }
 
   const thead = document.querySelector("#crossTable thead");
   const tbody = document.querySelector("#crossTable tbody");
 
   thead.innerHTML = `<tr>
     <th>Commune</th>
-    <th>Dept</th>
-    <th>Submarket</th>
-    <th class="num">Prix DVF /m²</th>
-    <th class="num">Yield sec.</th>
+    <th>Secteur CBRE</th>
+    <th class="num">Prix DVF</th>
+    <th class="num">Yield</th>
     <th class="num">Loyer cap rate</th>
-    <th class="num">Loyer Cushman 2M</th>
+    <th class="num" colspan="2" style="text-align:center">CBRE usage</th>
+    <th class="num">Cushman 2M</th>
     <th class="num">Ecart</th>
-    <th class="num">Tx DVF</th>
+    <th>Statut</th>
+    <th class="num">Tx</th>
   </tr>`;
 
   if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#888;padding:1.5rem">Lancer une analyse avec des departements IDF (75, 92, 93, 94) pour voir le cross-check</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#888;padding:1.5rem">Lancer une analyse avec des departements IDF (75, 92, 93, 94) pour voir le cross-check</td></tr>';
     return;
   }
 
+  const rangeBadge = (r) => {
+    if (!r.inRange) return '<span style="color:#888">-</span>';
+    if (r.inRange === "ok") return '<span class="yield-badge yield-ok">Dans fourchette</span>';
+    if (r.inRange === "bas") return '<span class="yield-badge yield-bad">Sous CBRE</span>';
+    return '<span class="yield-badge yield-warn">Au-dessus</span>';
+  };
+
   tbody.innerHTML = rows.map(r => `<tr>
     <td>${r.commune}</td>
-    <td>${r.dept}</td>
-    <td class="sm-name" title="${r.submarket}" style="color:#aa88ff">${r.submarket}</td>
+    <td class="sm-name" title="${r.cbre_secteur}" style="color:#aa88ff;font-size:.72rem">${r.cbre_secteur}</td>
     <td class="num">${r.prix_dvf.toLocaleString("fr")} EUR</td>
     <td class="num">${(r.yield_sec * 100).toFixed(2)}%</td>
     <td class="num" style="color:#aa88ff;font-weight:600">${r.loyer_caprate.toLocaleString("fr")} EUR</td>
+    <td class="num" style="color:#888">${r.cbre_min ? r.cbre_min + " EUR" : "-"}</td>
+    <td class="num">${r.cbre_max ? r.cbre_max + " EUR" : "-"}</td>
     <td class="num">${r.loyer_cushman ? r.loyer_cushman.toLocaleString("fr") + " EUR" : "-"}</td>
     <td class="num ${r.ecartClass}">${r.ecart != null ? (r.ecart >= 0 ? "+" : "") + r.ecart.toFixed(1) + "%" : "-"}</td>
+    <td>${rangeBadge(r)}</td>
     <td class="num">${r.nb_tx}</td>
   </tr>`).join("");
 }
