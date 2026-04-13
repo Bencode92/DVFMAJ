@@ -410,16 +410,24 @@
         <div id="exCommStatus" style="font-size:.82rem;margin-bottom:.75rem;display:none"></div>
         <pre id="commJsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#ffaa00"></pre>
 
-        <!-- BUREAUX CROSS-CHECK -->
-        <h3 style="color:#aa88ff;font-size:.95rem;margin:1.5rem 0 .75rem">Bureaux IDF — cross_check_bureaux.json</h3>
+        <!-- RÉFÉRENTIEL BUREAUX IDF -->
+        <h3 style="color:#ff6644;font-size:.95rem;margin:1.5rem 0 .75rem">Référentiel Bureaux IDF — referentiel_bureaux.json</h3>
+        <p style="color:#888;font-size:.78rem;margin-bottom:.75rem">Prix DVF + Loyers Cushman + Yields expert + Cap rate estimé — par commune × segment</p>
         <div class="cards">
-          <div class="card"><div class="label">Communes mappees</div><div class="value" style="color:#aa88ff" id="exBureaux">-</div></div>
+          <div class="card"><div class="label">Communes</div><div class="value" id="exRefComm" style="color:#ff6644">-</div></div>
+          <div class="card"><div class="label">Submarkets Cushman</div><div class="value" id="exRefCush" style="color:#ff6644">-</div></div>
         </div>
         <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
-          <button class="extract-btn" id="btnDlBureaux">Telecharger</button>
-          <button class="extract-btn" id="btnCopyBureaux">Copier</button>
+          <button class="extract-btn" id="btnDlRef">Telecharger</button>
+          <button class="extract-btn" id="btnCopyRef">Copier</button>
+          <button class="extract-btn push" id="btnPushRefDVF" style="background:#ff6644">Push DVFMAJ</button>
+          <div style="display:flex;align-items:center;gap:.4rem;flex:1;min-width:250px">
+            <input id="pushRefPath" type="text" placeholder="Bencode92/studyforge/contents/data/referentiel_bureaux.json" style="flex:1;background:#161b2e;border:1px solid #2a3050;color:#e0e0e0;padding:.45rem .6rem;border-radius:6px;font-size:.8rem" />
+            <button class="extract-btn push" id="btnPushRefOther" style="background:#ff6644">Push</button>
+          </div>
         </div>
-        <pre id="bureaux-json-preview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#aa88ff"></pre>
+        <div id="exRefStatus" style="font-size:.82rem;margin-bottom:.75rem;display:none"></div>
+        <pre id="refJsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#ff6644"></pre>
       </div>
     </div>
   </div>
@@ -470,6 +478,7 @@ let uploadFiles = new Map();
 let STATS = []; // final analytics results
 let VILLES_JSON = null;
 let COMMERCIAL_JSON = null;
+let REFERENTIEL_JSON = null;
 let sortCol = null, sortAsc = true;
 
 // Commercial surface buckets
@@ -790,12 +799,20 @@ async function runAnalysis() {
     // 6) Analytics commercial
     const COMM_STATS = commercialAnalyticsPipeline(commData);
 
+    // 7) Charger Cushman submarkets
+    setProgress(92, "Chargement données Cushman...");
+    try {
+      const cushResp = await fetch(RAW + "/data/submarkets_idf_t4_2025.csv");
+      if (cushResp.ok) { parseCushmanCSV(await cushResp.text()); console.log("Cushman:", Object.keys(CUSHMAN_DATA).length, "submarkets"); }
+    } catch(e) { console.warn("Cushman non chargé:", e.message); }
+
     setProgress(95, "Generation JSON...");
     await sleep(10);
 
-    // 7) Build JSONs
+    // 8) Build JSONs
     VILLES_JSON = buildVillesJson(STATS);
     COMMERCIAL_JSON = buildCommercialJson(COMM_STATS);
+    REFERENTIEL_JSON = buildReferentielBureaux(COMM_STATS);
 
     const withLoyer = STATS.filter(s => s.Loyer != null).length;
     const totalStats = STATS.length;
@@ -1245,6 +1262,172 @@ function analyticsPipeline(vente, loyer12, loyer3p) {
 }
 
 // ===================================================================
+// MAPPING COMMUNE → SUBMARKET + YIELDS (expert Q1 2026)
+// ===================================================================
+const YIELDS = {
+  "Paris QCA":               { prime: 4.50, sec: 6.25 },
+  "Paris Centre Ouest":      { prime: 5.00, sec: 7.00 },
+  "Paris Sud":               { prime: 5.25, sec: 7.00 },
+  "Paris Nord-Est":          { prime: 6.00, sec: 8.75 },
+  "La Défense":              { prime: 5.00, sec: 7.00 },
+  "Neuilly-Levallois":       { prime: 5.00, sec: 6.75 },
+  "Boucle Sud":              { prime: 5.50, sec: 7.50 },
+  "Péri-Défense":            { prime: 6.00, sec: 8.00 },
+  "Boucle Nord":             { prime: 6.50, sec: 8.75 },
+  "Première Couronne Nord":  { prime: 6.50, sec: 9.00 },
+  "Première Couronne Est":   { prime: 6.00, sec: 8.00 },
+  "Première Couronne Sud":   { prime: 5.75, sec: 7.75 },
+  "Deuxième Couronne Sud":   { prime: 6.50, sec: 8.50 },
+  "Ville Nouvelle Saint-Quentin-en-Yvelines": { prime: 7.00, sec: 9.00 },
+  "Ville Nouvelle Marne-la-Vallée": { prime: 6.50, sec: 8.50 },
+  "Ville Nouvelle Cergy":    { prime: 7.50, sec: 9.50 },
+  "Pôle de Roissy":          { prime: 7.00, sec: 9.00 },
+  "Reste Deuxième Couronne": { prime: 7.00, sec: 9.00 },
+};
+
+// Paris arrondissements → submarket
+const PARIS_SUBMARKET = {
+  "75101":"Paris QCA","75102":"Paris QCA","75108":"Paris QCA","75109":"Paris QCA",
+  "75116":"Paris QCA","75117":"Paris QCA",
+  "75105":"Paris Centre Ouest","75106":"Paris Centre Ouest","75107":"Paris Centre Ouest",
+  "75115":"Paris Centre Ouest","75114":"Paris Centre Ouest",
+  "75112":"Paris Sud","75113":"Paris Sud",
+  "75103":"Paris Nord-Est","75104":"Paris Nord-Est","75110":"Paris Nord-Est",
+  "75111":"Paris Nord-Est","75118":"Paris Nord-Est","75119":"Paris Nord-Est","75120":"Paris Nord-Est",
+};
+
+// Communes 92 → submarket
+const COMM92_SUBMARKET = {
+  "92062":"La Défense","92026":"La Défense",  // Puteaux, Courbevoie
+  "92051":"Neuilly-Levallois","92044":"Neuilly-Levallois", // Neuilly, Levallois
+  "92012":"Boucle Sud","92040":"Boucle Sud","92048":"Boucle Sud","92046":"Boucle Sud","92075":"Boucle Sud", // Boulogne,Issy,Meudon,Malakoff,Vanves
+  "92050":"Boucle Sud","92049":"Boucle Sud","92023":"Boucle Sud","92020":"Boucle Sud", // Montrouge,Clamart,Châtillon
+  "92035":"Péri-Défense","92036":"Péri-Défense","92063":"Péri-Défense", // Garches,Gennevilliers,Rueil
+  "92004":"Boucle Nord","92024":"Boucle Nord","92025":"Boucle Nord","92009":"Boucle Nord", // Asnières,Clichy,Colombes,Bois-Colombes
+  "92073":"Boucle Sud","92071":"Boucle Sud","92060":"Boucle Sud","92019":"Boucle Sud", // Suresnes,Sceaux,Plessis-Robinson,Châtenay
+  "92002":"Boucle Sud","92033":"Boucle Sud","92022":"Boucle Sud","92032":"Boucle Sud", // Antony,Fontenay-aux-Roses,Chaville,Garches
+  "92077":"Péri-Défense","92047":"Péri-Défense", // Villeneuve-la-Garenne, La Garenne-Colombes
+  "92064":"Boucle Sud","92072":"Boucle Sud","92007":"Boucle Sud", // Saint-Cloud,Sèvres,Bagneux
+};
+
+// Communes 93 → submarket
+const COMM93_SUBMARKET = {};
+["93066","93070","93001","93008","93010","93006","93027","93029","93031","93055","93057","93059",
+ "93053","93071","93047","93048","93078","93079"].forEach(c => COMM93_SUBMARKET[c] = "Première Couronne Nord");
+["93005","93014","93032","93033","93039","93045","93049","93050","93051","93061","93063","93064",
+ "93073","93077"].forEach(c => COMM93_SUBMARKET[c] = "Première Couronne Est");
+
+// Communes 94 → submarket
+const COMM94_SUBMARKET = {};
+["94080","94076","94041","94042","94043","94033","94034","94037","94038","94028","94011","94018",
+ "94019","94003","94015","94016","94017","94046","94047","94048","94052","94053","94054","94055",
+ "94058","94065","94067","94068","94069","94070","94071","94073","94074","94075","94077","94078",
+ "94079","94081"].forEach(c => COMM94_SUBMARKET[c] = "Première Couronne Sud");
+
+function getSubmarket(codeCommune, dept) {
+  if (!codeCommune) return null;
+  if (dept === "75") return PARIS_SUBMARKET[codeCommune] || "Paris Nord-Est";
+  if (dept === "92") return COMM92_SUBMARKET[codeCommune] || "Boucle Sud";
+  if (dept === "93") return COMM93_SUBMARKET[codeCommune] || "Première Couronne Nord";
+  if (dept === "94") return COMM94_SUBMARKET[codeCommune] || "Première Couronne Sud";
+  if (["78","91","95"].includes(dept)) return "Deuxième Couronne Sud";
+  if (dept === "77") return "Ville Nouvelle Marne-la-Vallée";
+  return null;
+}
+
+let CUSHMAN_DATA = {}; // submarket → {loyer_prime, loyer_1re, loyer_2de, vacance}
+
+function parseCushmanCSV(text) {
+  const lines = text.trim().split("\n");
+  const h = lines[0].split(";");
+  const iName = h.indexOf("submarket");
+  const iPrime = h.indexOf("loyer_prime_eur_m2_an");
+  const i1re = h.indexOf("loyer_moyen_1ere_main_eur_m2_an");
+  const i2de = h.indexOf("loyer_moyen_2eme_main_eur_m2_an");
+  const iVac = h.indexOf("taux_vacance_pct");
+  for (let i = 1; i < lines.length; i++) {
+    const v = lines[i].split(";");
+    const name = (v[iName] || "").trim();
+    if (!name || name.startsWith("TOTAL")) continue;
+    CUSHMAN_DATA[name] = {
+      loyer_prime: parseFloat(v[iPrime]) || null,
+      loyer_1re_main: parseFloat(v[i1re]) || null,
+      loyer_2de_main: parseFloat(v[i2de]) || null,
+      taux_vacance: parseFloat(v[iVac]) || null,
+    };
+  }
+}
+
+// ===================================================================
+// BUILD REFERENTIEL BUREAUX JSON
+// ===================================================================
+function buildReferentielBureaux(commStats) {
+  const map = {};
+  for (const r of commStats) {
+    const nom = norm(r.nom_commune);
+    const k = nom + "|" + r.code_departement;
+    if (!map[k]) {
+      const sm = getSubmarket(r.code_commune, r.code_departement);
+      const y = sm ? YIELDS[sm] : null;
+      const cush = sm ? CUSHMAN_DATA[sm] : null;
+      map[k] = {
+        nom, code_insee: r.code_commune, departement: r.code_departement,
+        submarket: sm || "Non mappé",
+        prix_vente: {},
+        loyers: {
+          yield_secondaire_pct: y ? y.sec : null,
+          yield_prime_pct: y ? y.prime : null,
+          cushman_prime_m2_an: cush ? cush.loyer_prime : null,
+          cushman_1re_main_m2_an: cush ? cush.loyer_1re_main : null,
+          cushman_2de_main_m2_an: cush ? cush.loyer_2de_main : null,
+          taux_vacance_pct: cush ? cush.taux_vacance : null,
+        },
+      };
+    }
+    const seg = r.bucket;
+    const segKey = seg === "S1" ? "S1_boutique" : seg === "S2" ? "S2_local" : seg === "S3" ? "S3_plateau" : "S4_immeuble";
+    map[k].prix_vente[segKey] = {
+      median: Math.round(r.ref_m2 * 100) / 100,
+      p25: r.p25 ? Math.round(r.p25 * 100) / 100 : null,
+      p75: r.p75 ? Math.round(r.p75 * 100) / 100 : null,
+      nb_transactions: r.n_mut,
+      surface_mediane: r.surf_med ? Math.round(r.surf_med) : null,
+      fiabilite: r.fiabilite,
+    };
+  }
+
+  // Ajouter loyer estimé cap rate pour chaque commune
+  for (const loc of Object.values(map)) {
+    const y = loc.loyers.yield_secondaire_pct;
+    if (!y) continue;
+    // Prendre le prix médian tous segments pour le cap rate
+    const allPrices = Object.values(loc.prix_vente).map(s => s.median).filter(p => p > 0);
+    if (allPrices.length > 0) {
+      const avgPrice = allPrices.reduce((s, p) => s + p, 0) / allPrices.length;
+      loc.loyers.estime_caprate_m2_an = Math.round(avgPrice * y / 100);
+    }
+    // Cap rate par segment
+    for (const [seg, data] of Object.entries(loc.prix_vente)) {
+      if (data.median > 0 && y) {
+        data.loyer_estime_m2_an = Math.round(data.median * y / 100);
+      }
+    }
+  }
+
+  return {
+    referentiel_bureaux_idf: {
+      date_extraction: new Date().toISOString().split("T")[0],
+      source_prix: "DVF data.gouv.fr (transactions réelles)",
+      source_loyers_marche: "Cushman & Wakefield MarketBeat Bureaux IDF T4 2025",
+      yields_reference: "Consensus expert Q1 2026 (post-remontée taux)",
+      methode_loyer_estime: "Prix vente DVF × yield secondaire",
+      segments: { S1_boutique: "9-50m²", S2_local: "50-150m²", S3_plateau: "150-500m²", S4_immeuble: "500m²+" },
+      communes: Object.values(map).sort((a, b) => a.nom.localeCompare(b.nom)),
+    }
+  };
+}
+
+// ===================================================================
 // COMMERCIAL PIPELINE — simple et propre, pas de beta, pas de décote
 // ===================================================================
 function transformCommercialPipeline(rawRows) {
@@ -1574,14 +1757,14 @@ function renderExtract() {
     document.getElementById("exCommComm").textContent = COMMERCIAL_JSON.locaux.length;
     document.getElementById("commJsonPreview").textContent = JSON.stringify(COMMERCIAL_JSON, null, 4);
   }
-  // Bureaux cross-check preview (built async after loadBureauxIDF)
-  setTimeout(() => {
-    if (CROSS_DATA.length > 0) {
-      document.getElementById("exBureaux").textContent = CROSS_DATA.length;
-      const data = { cross_check: CROSS_DATA, submarkets: SUBMARKETS, source: "DVF + Cushman MarketBeat T4 2025" };
-      document.getElementById("bureaux-json-preview").textContent = JSON.stringify(data, null, 4);
-    }
-  }, 3000);
+  // Référentiel bureaux
+  if (REFERENTIEL_JSON) {
+    const ref = REFERENTIEL_JSON.referentiel_bureaux_idf;
+    document.getElementById("exRefComm").textContent = ref.communes.length;
+    const withCush = ref.communes.filter(c => c.loyers.cushman_prime_m2_an != null).length;
+    document.getElementById("exRefCush").textContent = withCush + "/" + ref.communes.length;
+    document.getElementById("refJsonPreview").textContent = JSON.stringify(REFERENTIEL_JSON, null, 4);
+  }
 }
 
 document.getElementById("btnDlJson").addEventListener("click", () => {
@@ -1618,17 +1801,26 @@ async function pushJson(repo, path) {
 function exMsg(m,ok){const el=document.getElementById("exStatus");el.style.display="block";el.style.color=ok?"#00d4aa":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
 function exCommMsg(m,ok){const el=document.getElementById("exCommStatus");el.style.display="block";el.style.color=ok?"#ffaa00":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
 
-// Bureaux extract
-document.getElementById("btnDlBureaux").addEventListener("click", () => {
-  if(!CROSS_DATA.length) return;
-  const data = { cross_check: CROSS_DATA, submarkets: SUBMARKETS, source: "DVF + Cushman MarketBeat T4 2025", generated: new Date().toISOString() };
-  const js=JSON.stringify(data,null,4);
-  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([js],{type:"application/json"}));a.download="cross_check_bureaux.json";a.click();
+// Référentiel bureaux extract
+function exRefMsg(m,ok){const el=document.getElementById("exRefStatus");el.style.display="block";el.style.color=ok?"#ff6644":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
+
+document.getElementById("btnDlRef").addEventListener("click", () => {
+  if(!REFERENTIEL_JSON) return;
+  const js=JSON.stringify(REFERENTIEL_JSON,null,4);
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([js],{type:"application/json"}));a.download="referentiel_bureaux.json";a.click();
+  exRefMsg("Telecharge",true);
 });
-document.getElementById("btnCopyBureaux").addEventListener("click", async () => {
-  if(!CROSS_DATA.length) return;
-  const data = { cross_check: CROSS_DATA, submarkets: SUBMARKETS, source: "DVF + Cushman MarketBeat T4 2025", generated: new Date().toISOString() };
-  try{await navigator.clipboard.writeText(JSON.stringify(data,null,4));}catch(e){}
+document.getElementById("btnCopyRef").addEventListener("click", async () => {
+  if(!REFERENTIEL_JSON) return;
+  try{await navigator.clipboard.writeText(JSON.stringify(REFERENTIEL_JSON,null,4));exRefMsg("Copie !",true);}catch(e){exRefMsg("Erreur",false);}
+});
+document.getElementById("btnPushRefDVF").addEventListener("click", () => { if(REFERENTIEL_JSON) pushJson2(REPO,"output/referentiel_bureaux.json",REFERENTIEL_JSON,exRefMsg); });
+document.getElementById("btnPushRefOther").addEventListener("click", () => {
+  if(!REFERENTIEL_JSON) return;
+  const p=document.getElementById("pushRefPath").value.trim();
+  if(!p){exRefMsg("Entrer le chemin",false);return;}
+  const pts=p.split("/");if(pts.length<4){exRefMsg("Format: owner/repo/contents/path/file.json",false);return;}
+  pushJson2(pts[0]+"/"+pts[1],pts.slice(2).join("/").replace(/^contents\//,""),REFERENTIEL_JSON,exRefMsg);
 });
 
 // Commercial extract
