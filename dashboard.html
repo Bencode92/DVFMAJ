@@ -2206,6 +2206,21 @@ function initCommuneMapping() {
   pc_est.forEach(c => COMMUNE_SUBMARKET[c] = "Première Couronne Est");
   pc_sud.forEach(c => COMMUNE_SUBMARKET[c] = "Première Couronne Sud");
 
+  // 93 — communes manquantes
+  ["LE BLANC MESNIL","AULNAY SOUS BOIS","SEVRAN","LIVRY GARGAN","CLICHY SOUS BOIS","MONTFERMEIL","VILLEPINTE","TREMBLAY EN FRANCE","DUGNY","PIERREFITTE SUR SEINE","VILLETANEUSE"].forEach(c => COMMUNE_SUBMARKET[c] = "Première Couronne Nord");
+  ["NOISY LE GRAND","NEUILLY SUR MARNE","NEUILLY PLAISANCE","VILLEMOMBLE","GAGNY","GOURNAY SUR MARNE","COUBRON"].forEach(c => COMMUNE_SUBMARKET[c] = "Première Couronne Est");
+
+  // 94 — communes manquantes
+  ["CRETEIL","MAISON ALFORT","SAINT MAUR DES FOSSES","CHAMPIGNY SUR MARNE","SUCY EN BRIE","CHENNEVIERES SUR MARNE","ORMESSON SUR MARNE"].forEach(c => COMMUNE_SUBMARKET[c] = "Première Couronne Est");
+  ["ALFORTVILLE","VILLENEUVE SAINT GEORGES","LIMEIL BREVANNES","VALENTON","BONNEUIL SUR MARNE","VILLECRESNES"].forEach(c => COMMUNE_SUBMARKET[c] = "Première Couronne Sud");
+  ["VILLENEUVE LE ROI","ABLON SUR SEINE"].forEach(c => COMMUNE_SUBMARKET[c] = "Première Couronne Sud");
+
+  // 92 — communes manquantes
+  COMMUNE_SUBMARKET["BAGNEUX"] = "Boucle Sud";
+  COMMUNE_SUBMARKET["GARCHES"] = "Boucle Sud";
+  COMMUNE_SUBMARKET["VAUCRESSON"] = "Boucle Sud";
+  COMMUNE_SUBMARKET["MARNES LA COQUETTE"] = "Boucle Sud";
+
   // Fallback: PARIS seul → TOTAL PARIS
   COMMUNE_SUBMARKET["PARIS"] = "Paris QCA";
 }
@@ -2468,6 +2483,28 @@ function initCbreMapping() {
   COMMUNE_CBRE["FRESNES"] = "Reste Val-de-Marne";
   COMMUNE_CBRE["ANTONY"] = "Massy / Antony";
   COMMUNE_CBRE["VELIZY VILLACOUBLAY"] = "Vélizy-Villacoublay / Meudon la Forêt";
+
+  // 93 — communes manquantes
+  ["LE BLANC MESNIL","AULNAY SOUS BOIS","SEVRAN","LIVRY GARGAN","CLICHY SOUS BOIS","MONTFERMEIL","DUGNY","PIERREFITTE SUR SEINE","VILLETANEUSE","COUBRON","GOURNAY SUR MARNE"].forEach(c => COMMUNE_CBRE[c] = "Reste Seine-Saint-Denis");
+  ["VILLEPINTE","TREMBLAY EN FRANCE"].forEach(c => COMMUNE_CBRE[c] = "Paris Nord II");
+  ["NOISY LE GRAND","NEUILLY SUR MARNE","NEUILLY PLAISANCE","VILLEMOMBLE","GAGNY"].forEach(c => COMMUNE_CBRE[c] = "Porte de Paris");
+  COMMUNE_CBRE["NOISY LE SEC"] = "Reste Seine-Saint-Denis";
+
+  // 94 — communes manquantes
+  COMMUNE_CBRE["CRETEIL"] = "Créteil";
+  COMMUNE_CBRE["MAISON ALFORT"] = "Maison-Alfort";
+  COMMUNE_CBRE["ALFORTVILLE"] = "Alfortville";
+  COMMUNE_CBRE["SAINT MAUR DES FOSSES"] = "St-Maur, Champigny";
+  COMMUNE_CBRE["CHAMPIGNY SUR MARNE"] = "St-Maur, Champigny";
+  ["SUCY EN BRIE","CHENNEVIERES SUR MARNE","ORMESSON SUR MARNE","BONNEUIL SUR MARNE","VILLECRESNES"].forEach(c => COMMUNE_CBRE[c] = "Reste Val-de-Marne");
+  ["VILLENEUVE SAINT GEORGES","LIMEIL BREVANNES","VALENTON"].forEach(c => COMMUNE_CBRE[c] = "Reste Val-de-Marne");
+  ["VILLENEUVE LE ROI","ABLON SUR SEINE"].forEach(c => COMMUNE_CBRE[c] = "Pôle Orly");
+
+  // 92 — communes manquantes
+  COMMUNE_CBRE["BAGNEUX"] = "Châtillon, Bagneux, Arcueil, Cachan";
+  COMMUNE_CBRE["GARCHES"] = "Reste Hauts-de-Seine";
+  COMMUNE_CBRE["VAUCRESSON"] = "Reste Hauts-de-Seine";
+  COMMUNE_CBRE["MARNES LA COQUETTE"] = "Reste Hauts-de-Seine";
 }
 initCbreMapping();
 
