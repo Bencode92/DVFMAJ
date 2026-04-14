@@ -1547,6 +1547,8 @@ function buildBureauxAdressesJson() {
     const sm = getSubmarket(nom);
     const cbreSecteur = getCbreSecteur(nom, data.dept);
     const cbre = getCbreData(cbreSecteur);
+    if (!cbreSecteur) console.warn("CBRE MANQUANT:", nom, "dept:", data.dept, "norm:", norm(nom));
+    else if (!cbre) console.warn("CBRE SECTEUR INTROUVABLE:", cbreSecteur, "pour", nom);
     const cushData = sm ? CUSHMAN_DATA[sm] : null;
     const vacMarche = cushData ? cushData.taux_vacance : null;
     const franchMois = sm && FRANCHISE_MOIS[sm] != null ? FRANCHISE_MOIS[sm] : 9;
@@ -2173,11 +2175,15 @@ const DUREE_BAIL_MOIS = 72; // 6 ans ferme
 // Mapping commune (normalisé) → submarket Cushman
 const COMMUNE_SUBMARKET = {};
 function initCommuneMapping() {
-  // Paris arrondissements
-  const qca = ["PARIS 1ER","PARIS 2EME","PARIS 8EME","PARIS 9EME","PARIS 16EME","PARIS 17EME"];
-  const centreOuest = ["PARIS 5EME","PARIS 6EME","PARIS 7EME","PARIS 15EME"];
-  const sud = ["PARIS 12EME","PARIS 13EME","PARIS 14EME"];
-  const nordEst = ["PARIS 3EME","PARIS 4EME","PARIS 10EME","PARIS 11EME","PARIS 18EME","PARIS 19EME","PARIS 20EME"];
+  // Paris arrondissements — les deux formats (court + DVF API)
+  const qca = ["PARIS 1ER","PARIS 2EME","PARIS 8EME","PARIS 9EME","PARIS 16EME","PARIS 17EME",
+    "PARIS 1ER ARRONDISSEMENT","PARIS 2E ARRONDISSEMENT","PARIS 8E ARRONDISSEMENT","PARIS 9E ARRONDISSEMENT","PARIS 16E ARRONDISSEMENT","PARIS 17E ARRONDISSEMENT"];
+  const centreOuest = ["PARIS 5EME","PARIS 6EME","PARIS 7EME","PARIS 15EME",
+    "PARIS 5E ARRONDISSEMENT","PARIS 6E ARRONDISSEMENT","PARIS 7E ARRONDISSEMENT","PARIS 15E ARRONDISSEMENT"];
+  const sud = ["PARIS 12EME","PARIS 13EME","PARIS 14EME",
+    "PARIS 12E ARRONDISSEMENT","PARIS 13E ARRONDISSEMENT","PARIS 14E ARRONDISSEMENT"];
+  const nordEst = ["PARIS 3EME","PARIS 4EME","PARIS 10EME","PARIS 11EME","PARIS 18EME","PARIS 19EME","PARIS 20EME",
+    "PARIS 3E ARRONDISSEMENT","PARIS 4E ARRONDISSEMENT","PARIS 10E ARRONDISSEMENT","PARIS 11E ARRONDISSEMENT","PARIS 18E ARRONDISSEMENT","PARIS 19E ARRONDISSEMENT","PARIS 20E ARRONDISSEMENT"];
 
   qca.forEach(c => COMMUNE_SUBMARKET[c] = "Paris QCA");
   centreOuest.forEach(c => COMMUNE_SUBMARKET[c] = "Paris Centre Ouest (hors QCA)");
@@ -2375,27 +2381,23 @@ document.getElementById("cbre-search").addEventListener("input", e => renderCbre
 // Maps normalized commune name → CBRE secteur name (more granular than Cushman)
 const COMMUNE_CBRE = {};
 function initCbreMapping() {
-  // Paris arrondissements → CBRE secteurs
-  COMMUNE_CBRE["PARIS 1ER"] = "1er (hors Vendôme)";
-  COMMUNE_CBRE["PARIS 2EME"] = "2e (hors Opéra/Madeleine)";
-  COMMUNE_CBRE["PARIS 3EME"] = "3e - 4e";
-  COMMUNE_CBRE["PARIS 4EME"] = "3e - 4e";
-  COMMUNE_CBRE["PARIS 5EME"] = "5e - 6e";
-  COMMUNE_CBRE["PARIS 6EME"] = "5e - 6e";
-  COMMUNE_CBRE["PARIS 7EME"] = "7e";
-  COMMUNE_CBRE["PARIS 8EME"] = "8e Ouest";
-  COMMUNE_CBRE["PARIS 9EME"] = "9e Sud";
-  COMMUNE_CBRE["PARIS 10EME"] = "10e";
-  COMMUNE_CBRE["PARIS 11EME"] = "11e";
-  COMMUNE_CBRE["PARIS 12EME"] = "12e Gare de Lyon - Bercy";
-  COMMUNE_CBRE["PARIS 13EME"] = "13e Autres secteurs";
-  COMMUNE_CBRE["PARIS 14EME"] = "14e";
-  COMMUNE_CBRE["PARIS 15EME"] = "15e";
-  COMMUNE_CBRE["PARIS 16EME"] = "16e Nord";
-  COMMUNE_CBRE["PARIS 17EME"] = "17e Centre";
-  COMMUNE_CBRE["PARIS 18EME"] = "18e";
-  COMMUNE_CBRE["PARIS 19EME"] = "19e";
-  COMMUNE_CBRE["PARIS 20EME"] = "20e";
+  // Paris arrondissements → CBRE secteurs (format court + format DVF API)
+  const parisCbre = {
+    "1ER": "1er (hors Vendôme)", "2EME": "2e (hors Opéra/Madeleine)", "2E": "2e (hors Opéra/Madeleine)",
+    "3EME": "3e - 4e", "3E": "3e - 4e", "4EME": "3e - 4e", "4E": "3e - 4e",
+    "5EME": "5e - 6e", "5E": "5e - 6e", "6EME": "5e - 6e", "6E": "5e - 6e",
+    "7EME": "7e", "7E": "7e", "8EME": "8e Ouest", "8E": "8e Ouest",
+    "9EME": "9e Sud", "9E": "9e Sud", "10EME": "10e", "10E": "10e",
+    "11EME": "11e", "11E": "11e", "12EME": "12e Gare de Lyon - Bercy", "12E": "12e Gare de Lyon - Bercy",
+    "13EME": "13e Autres secteurs", "13E": "13e Autres secteurs", "14EME": "14e", "14E": "14e",
+    "15EME": "15e", "15E": "15e", "16EME": "16e Nord", "16E": "16e Nord",
+    "17EME": "17e Centre", "17E": "17e Centre", "18EME": "18e", "18E": "18e",
+    "19EME": "19e", "19E": "19e", "20EME": "20e", "20E": "20e",
+  };
+  for (const [suffix, secteur] of Object.entries(parisCbre)) {
+    COMMUNE_CBRE["PARIS " + suffix] = secteur;
+    COMMUNE_CBRE["PARIS " + suffix + " ARRONDISSEMENT"] = secteur;
+  }
 
   // 92
   COMMUNE_CBRE["PUTEAUX"] = "Puteaux (hors Défense)";
