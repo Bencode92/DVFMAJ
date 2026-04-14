@@ -859,7 +859,7 @@ async function runAnalysis() {
     // 9) Build bureaux par adresse JSON
     BUREAUX_ADRESSES_JSON = buildBureauxAdressesJson();
     if (BUREAUX_ADRESSES_JSON) {
-      console.log(`Bureaux par adresse: ${BUREAUX_ADRESSES_JSON.bureaux_par_adresse.nb_transactions_total} transactions, ${BUREAUX_ADRESSES_JSON.bureaux_par_adresse.nb_villes} villes`);
+      console.log(`Bureaux scorer: ${BUREAUX_ADRESSES_JSON.meta.nb_transactions} transactions, ${BUREAUX_ADRESSES_JSON.meta.nb_communes} communes`);
     }
 
     const withLoyer = STATS.filter(s => s.Loyer != null).length;
@@ -1488,180 +1488,128 @@ function buildReferentielBureaux(commStats) {
 function buildBureauxAdressesJson() {
   if (!BUREAUX_RAW || BUREAUX_RAW.length === 0) return null;
 
-  // Structure : ville → rue → numéro (hiérarchique)
-  const villesMap = {};
+  // Format scorer : meta + communes (fallback agrégé) + transactions (flat, GPS)
+  const communesTx = {}; // commune → [transactions]
+  const transactions = [];
 
   for (const r of BUREAUX_RAW) {
-    const ville = r.commune || "INCONNU";
-    const rue = r.adresseVoie || "ADRESSE INCONNUE";
-    const num = r.adresseNum || "SN"; // sans numéro
-
-    // Init ville
-    if (!villesMap[ville]) {
-      const sm = getSubmarket(ville);
-      const cbreSecteur = getCbreSecteur(ville);
-      const cbre = getCbreData(cbreSecteur);
-      const cushData = sm ? CUSHMAN_DATA[sm] : null;
-      const yields = sm ? YIELDS_2026[sm] : null;
-      const vacPct = sm && VACANCE_BP[sm] != null ? VACANCE_BP[sm] : 0.08;
-      const franchMois = sm && FRANCHISE_MOIS[sm] != null ? FRANCHISE_MOIS[sm] : 9;
-
-      villesMap[ville] = {
-        _sm: sm, _cbre: cbre, _cbreSecteur: cbreSecteur, _cushData: cushData,
-        _yields: yields, _vacPct: vacPct, _franchMois: franchMois,
-        nom: ville,
-        departement: r.dept,
-        code_postal: r.codePostal || null,
-        code_commune: r.codeC,
-        // Références marché
-        ref_cbre: cbre ? {
-          secteur: cbreSecteur,
-          usage: { min: parseInt(cbre.usage_min)||null, max: parseInt(cbre.usage_max)||null },
-          renove: { min: parseInt(cbre.renove_min)||null, max: parseInt(cbre.renove_max)||null },
-          neuf: { min: parseInt(cbre.neuf_min)||null, max: parseInt(cbre.neuf_max)||null },
-        } : null,
-        ref_cushman: cushData ? {
-          submarket: sm,
-          loyer_prime: cushData.loyer_prime,
-          loyer_2de_main: cushData.loyer_2de_main,
-          taux_vacance_marche_pct: cushData.taux_vacance,
-        } : null,
-        // Hypothèses BP de la zone
-        hypotheses_zone: {
-          yield_secondaire: yields ? yields.sec : null,
-          vacance_bp_pct: Math.round(vacPct * 1000) / 10,
-          franchise_mois: franchMois,
-          franchise_decote_pct: Math.round(franchMois / DUREE_BAIL_MOIS * 1000) / 10,
-          bail_duree_mois: DUREE_BAIL_MOIS,
-        },
-        rues: {},
-      };
-    }
-
-    const v = villesMap[ville];
-    // Init rue
-    if (!v.rues[rue]) {
-      v.rues[rue] = { nom: rue, adresses: {} };
-    }
-
-    // Calculs pour cette transaction
-    const surface = r.surf;
-    const pm2 = r.pm2;
-    const yieldSec = v._yields ? v._yields.sec : 0.07;
-    const cbreRef = v._cbre;
-    const vacBp = v._vacPct;
-    const franchMois = v._franchMois;
+    const commune = r.commune || "INCONNU";
+    const sm = getSubmarket(commune);
+    const yieldSec = sm && YIELDS_2026[sm] ? YIELDS_2026[sm].sec : 0.07;
+    const vacBp = sm && VACANCE_BP[sm] != null ? VACANCE_BP[sm] : 0.08;
+    const franchMois = sm && FRANCHISE_MOIS[sm] != null ? FRANCHISE_MOIS[sm] : 9;
     const franchPct = franchMois / DUREE_BAIL_MOIS;
     const facteurEco = (1 - vacBp) * (1 - franchPct);
 
-    // Loyer cap rate
-    const caprate_m2 = Math.round(pm2 * yieldSec);
-    const caprate_total = Math.round(caprate_m2 * surface);
+    const pm2 = r.pm2;
+    const surface = r.surf;
+    const loyerFacial = Math.round(pm2 * yieldSec);
+    const loyerEco = Math.round(loyerFacial * facteurEco);
+    const rdtEco = r.vf > 0 ? Math.round(loyerEco * surface / r.vf * 100 * 100) / 100 : null;
 
-    // Loyer CBRE
-    const cbreUsageMid = cbreRef && cbreRef.usage_min && cbreRef.usage_max
-      ? Math.round((parseInt(cbreRef.usage_min) + parseInt(cbreRef.usage_max)) / 2) : null;
-    const cbreRenoveMid = cbreRef && cbreRef.renove_min && cbreRef.renove_max
-      ? Math.round((parseInt(cbreRef.renove_min) + parseInt(cbreRef.renove_max)) / 2) : null;
-
-    // Franchise en EUR (sur le loyer annuel CBRE usage mid)
-    const loyerRefAn = cbreUsageMid ? cbreUsageMid * surface : caprate_total;
-    const franchiseEur = Math.round(loyerRefAn / 12 * franchMois);
-
-    // Fiche simulateur complète
-    const fiche = {
+    const tx = {
+      lat: r.lat || null,
+      lng: r.lng || null,
+      commune: commune,
+      departement: r.dept,
+      rue: r.adresseVoie || null,
+      numero: r.adresseNum || null,
       date_vente: r.date,
       surface_m2: Math.round(surface * 10) / 10,
+      prix_m2: Math.round(pm2),
+      prix_total: Math.round(r.vf),
       profil: r.profil || "bureau",
-      // Prix d'achat
-      achat: {
-        prix_total: Math.round(r.vf),
-        prix_m2: Math.round(pm2),
-      },
-      // Loyer cap rate (prix DVF × yield)
-      loyer_caprate: {
-        facial_m2_an: caprate_m2,
-        facial_total_an: caprate_total,
-        economique_m2_an: Math.round(caprate_m2 * facteurEco),
-        economique_total_an: Math.round(caprate_total * facteurEco),
-      },
-      // Loyer CBRE (fourchette marché)
-      loyer_cbre: cbreUsageMid ? {
-        usage_m2_an: { min: parseInt(cbreRef.usage_min), mid: cbreUsageMid, max: parseInt(cbreRef.usage_max) },
-        renove_m2_an: cbreRenoveMid ? { min: parseInt(cbreRef.renove_min), mid: cbreRenoveMid, max: parseInt(cbreRef.renove_max) } : null,
-        usage_total_an: { min: Math.round(parseInt(cbreRef.usage_min)*surface), mid: Math.round(cbreUsageMid*surface), max: Math.round(parseInt(cbreRef.usage_max)*surface) },
-        usage_economique_total_an: Math.round(cbreUsageMid * surface * facteurEco),
-        renove_economique_total_an: cbreRenoveMid ? Math.round(cbreRenoveMid * surface * facteurEco) : null,
-      } : null,
-      // Franchise en EUR
-      franchise: {
-        duree_mois: franchMois,
-        montant_eur: franchiseEur,
-        loyer_mensuel_perdu: Math.round(loyerRefAn / 12),
-      },
-      // Rendements
-      rendement: {
-        brut_pct: Math.round(caprate_total / r.vf * 100 * 100) / 100,
-        net_vacance_pct: Math.round(caprate_total * (1-vacBp) / r.vf * 100 * 100) / 100,
-        economique_pct: Math.round(caprate_total * facteurEco / r.vf * 100 * 100) / 100,
-      },
-      coordonnees: (r.lng && r.lat) ? { lng: r.lng, lat: r.lat } : null,
+      loyer_facial_m2_an: loyerFacial,
+      loyer_eco_m2_an: loyerEco,
+      rendement_eco_pct: rdtEco,
+      segment: r.bucket,
     };
+    transactions.push(tx);
 
-    // Ajouter à la rue → numéro
-    // Si même numéro = plusieurs lots dans le même immeuble
-    if (!v.rues[rue].adresses[num]) {
-      v.rues[rue].adresses[num] = [];
-    }
-    v.rues[rue].adresses[num].push(fiche);
+    // Accumuler pour stats commune
+    if (!communesTx[commune]) communesTx[commune] = { dept: r.dept, txs: [] };
+    communesTx[commune].txs.push({ pm2, loyerEco, rdtEco, surface });
   }
 
-  // Transformer en arrays triées + stats
-  let totalTx = 0, totalBureaux = 0;
-  const villes = [];
-  for (const v of Object.values(villesMap)) {
-    const ruesArr = [];
-    for (const [rueNom, rueData] of Object.entries(v.rues)) {
-      const adressesArr = [];
-      for (const [num, fiches] of Object.entries(rueData.adresses)) {
-        adressesArr.push({ numero: num, lots: fiches });
-        totalTx += fiches.length;
-        totalBureaux += fiches.filter(f => f.profil === "bureau").length;
-      }
-      adressesArr.sort((a, b) => {
-        const na = parseInt(a.numero) || 0, nb = parseInt(b.numero) || 0;
-        return na - nb;
-      });
-      ruesArr.push({ rue: rueNom, nb_adresses: adressesArr.length, adresses: adressesArr });
-    }
-    ruesArr.sort((a, b) => a.rue.localeCompare(b.rue));
+  // Construire index communes (fallback agrégé)
+  const communes = {};
+  for (const [nom, data] of Object.entries(communesTx)) {
+    const txs = data.txs;
+    const n = txs.length;
+    const prices = txs.map(t => t.pm2).sort((a, b) => a - b);
+    const loyers = txs.map(t => t.loyerEco).sort((a, b) => a - b);
+    const rdts = txs.filter(t => t.rdtEco != null).map(t => t.rdtEco).sort((a, b) => a - b);
 
-    // Remove internal props
-    delete v._sm; delete v._cbre; delete v._cbreSecteur;
-    delete v._cushData; delete v._yields; delete v._vacPct; delete v._franchMois;
-    v.rues = ruesArr;
-    v.nb_rues = ruesArr.length;
-    v.nb_lots = ruesArr.reduce((s, r) => s + r.adresses.reduce((s2, a) => s2 + a.lots.length, 0), 0);
-    villes.push(v);
+    const median = arr => arr.length === 0 ? null : arr[Math.floor(arr.length / 2)];
+    const q25 = arr => arr.length < 4 ? (arr[0] || null) : arr[Math.floor(arr.length * 0.25)];
+    const q75 = arr => arr.length < 4 ? (arr[arr.length - 1] || null) : arr[Math.floor(arr.length * 0.75)];
+
+    const sm = getSubmarket(nom);
+    const cbreSecteur = getCbreSecteur(nom);
+    const cbre = getCbreData(cbreSecteur);
+    const cushData = sm ? CUSHMAN_DATA[sm] : null;
+    const vacMarche = cushData ? cushData.taux_vacance : null;
+    const franchMois = sm && FRANCHISE_MOIS[sm] != null ? FRANCHISE_MOIS[sm] : 9;
+
+    // Loyer CBRE mid usage pour la commune
+    const cbreUsageMid = cbre && cbre.usage_min && cbre.usage_max
+      ? Math.round((parseInt(cbre.usage_min) + parseInt(cbre.usage_max)) / 2) : null;
+    const cbreRenoveMid = cbre && cbre.renove_min && cbre.renove_max
+      ? Math.round((parseInt(cbre.renove_min) + parseInt(cbre.renove_max)) / 2) : null;
+
+    communes[nom] = {
+      departement: data.dept,
+      stats: {
+        nb_tx: n,
+        prix_m2_median: Math.round(median(prices)),
+        prix_m2_q25: Math.round(q25(prices)),
+        prix_m2_q75: Math.round(q75(prices)),
+      },
+      loyer: {
+        caprate_median_m2_an: Math.round(median(loyers)),
+        cbre_usage_min_m2_an: cbre ? (parseInt(cbre.usage_min) || null) : null,
+        cbre_usage_mid_m2_an: cbreUsageMid,
+        cbre_usage_max_m2_an: cbre ? (parseInt(cbre.usage_max) || null) : null,
+        cbre_renove_mid_m2_an: cbreRenoveMid,
+        cbre_secteur: cbreSecteur || null,
+      },
+      rendement: {
+        brut_median_pct: rdts.length > 0 ? Math.round(median(rdts) * 100) / 100 : null,
+        eco_median_pct: rdts.length > 0 ? Math.round(median(rdts) * 100) / 100 : null,
+      },
+      risque: {
+        vacance_marche_pct: vacMarche,
+        vacance_bp_pct: sm && VACANCE_BP[sm] != null ? Math.round(VACANCE_BP[sm] * 100 * 10) / 10 : 8,
+        franchise_mois: franchMois,
+      },
+    };
   }
-  villes.sort((a, b) => a.nom.localeCompare(b.nom));
+
+  // Trier transactions par commune puis rue puis numéro
+  transactions.sort((a, b) =>
+    a.commune.localeCompare(b.commune)
+    || (a.rue || "").localeCompare(b.rue || "")
+    || (parseInt(a.numero) || 0) - (parseInt(b.numero) || 0)
+  );
 
   return {
-    bureaux_par_adresse: {
-      date_extraction: new Date().toISOString().split("T")[0],
+    meta: {
+      date: new Date().toISOString().split("T")[0],
+      nb_transactions: transactions.length,
+      nb_communes: Object.keys(communes).length,
+      nb_bureaux_probables: transactions.filter(t => t.profil === "bureau").length,
       sources: {
-        prix: "DVF data.gouv.fr (transactions réelles)",
-        loyers_cbre: "CBRE Prix des loyers de bureaux IDF, 1er janvier 2026",
-        loyers_cushman: "Cushman & Wakefield MarketBeat Bureaux IDF T4 2025",
-        yields: "Consensus expert Q1 2026",
-        vacance: "Grille zonale expert — CBRE/Cushman/JLL T4 2025",
-        franchise: "Immostat T3 2025 retraité petites surfaces 300-700m²",
+        prix: "DVF data.gouv.fr",
+        loyers_cbre: "CBRE jan. 2026",
+        loyers_cushman: "Cushman T4 2025",
+        yields: "Expert Q1 2026",
+        vacance: "Grille zonale expert",
+        franchise: "Immostat T3 2025",
       },
-      nb_villes: villes.length,
-      nb_transactions: totalTx,
-      nb_bureaux_probables: totalBureaux,
-      villes,
-    }
+      usage: "Scorer : 1) rayon 500m (GPS) → 2) rayon 1km → 3) fallback communes",
+    },
+    communes,
+    transactions,
   };
 }
 
@@ -2016,17 +1964,20 @@ function renderExtract() {
     document.getElementById("exRefCush").textContent = withCush + "/" + ref.communes.length;
     document.getElementById("refJsonPreview").textContent = JSON.stringify(REFERENTIEL_JSON, null, 4);
   }
-  // Bureaux par adresse
+  // Bureaux scorer
   if (BUREAUX_ADRESSES_JSON) {
-    const bx = BUREAUX_ADRESSES_JSON.bureaux_par_adresse;
-    document.getElementById("exBxTx").textContent = bx.nb_transactions_total;
-    document.getElementById("exBxVilles").textContent = bx.nb_villes;
-    const withCbre = bx.villes.filter(v => v.ref_cbre != null).length;
-    const withCush = bx.villes.filter(v => v.ref_cushman != null).length;
-    document.getElementById("exBxCbre").textContent = withCbre + "/" + bx.nb_villes;
-    document.getElementById("exBxCush").textContent = withCush + "/" + bx.nb_villes;
-    // Preview first 5 villes only (file can be huge)
-    const preview = { ...BUREAUX_ADRESSES_JSON, bureaux_par_adresse: { ...bx, villes: bx.villes.slice(0, 5), _note: `... ${bx.nb_villes} villes au total (apercu 5 premieres)` }};
+    const m = BUREAUX_ADRESSES_JSON.meta;
+    document.getElementById("exBxTx").textContent = m.nb_transactions;
+    document.getElementById("exBxVilles").textContent = m.nb_communes;
+    const comKeys = Object.keys(BUREAUX_ADRESSES_JSON.communes);
+    const withCbre = comKeys.filter(k => BUREAUX_ADRESSES_JSON.communes[k].loyer.cbre_usage_mid_m2_an != null).length;
+    const withVac = comKeys.filter(k => BUREAUX_ADRESSES_JSON.communes[k].risque.vacance_marche_pct != null).length;
+    document.getElementById("exBxCbre").textContent = withCbre + "/" + m.nb_communes;
+    document.getElementById("exBxCush").textContent = withVac + "/" + m.nb_communes;
+    // Preview : meta + 3 communes + 10 transactions
+    const previewCom = {};
+    comKeys.slice(0, 3).forEach(k => previewCom[k] = BUREAUX_ADRESSES_JSON.communes[k]);
+    const preview = { meta: m, communes: { ...previewCom, _note: `... ${m.nb_communes} communes au total` }, transactions: BUREAUX_ADRESSES_JSON.transactions.slice(0, 10).concat([{ _note: `... ${m.nb_transactions} transactions au total` }]) };
     document.getElementById("bxJsonPreview").textContent = JSON.stringify(preview, null, 4);
   }
 }
