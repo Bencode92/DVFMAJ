@@ -1526,10 +1526,17 @@ function buildBureauxAdressesJson() {
           loyer_2de_main: cushData.loyer_2de_main,
           taux_vacance_marche_pct: cushData.taux_vacance,
         } : null,
-        // Vacance pour BP : max(5%, vacance_marché / 2.5) — prudent
-        vacance_bp_pct: cushData && cushData.taux_vacance
-          ? Math.max(5, Math.round(cushData.taux_vacance / 2.5 * 10) / 10)
-          : 5,
+        // Vacance BP — grille zonale expert (PAS de formule ÷2.5)
+        vacance_bp_pct: sm && VACANCE_BP[sm] != null
+          ? Math.round(VACANCE_BP[sm] * 100 * 10) / 10
+          : 8, // fallback prudent
+        // Franchise locative — mois sur bail 6 ans ferme
+        franchise_mois: sm && FRANCHISE_MOIS[sm] != null
+          ? FRANCHISE_MOIS[sm]
+          : 9, // fallback
+        franchise_decote_pct: sm && FRANCHISE_MOIS[sm] != null
+          ? Math.round(FRANCHISE_MOIS[sm] / DUREE_BAIL_MOIS * 100 * 10) / 10
+          : Math.round(9 / 72 * 100 * 10) / 10,
         // Yield
         yield_prime: yields ? yields.prime : null,
         yield_secondaire: yields ? yields.sec : null,
@@ -1559,13 +1566,17 @@ function buildBureauxAdressesJson() {
       renove_total_an: (cbreRef.renove_min && cbreRef.renove_max) ? { min: Math.round(cbreRef.renove_min * surface), max: Math.round(cbreRef.renove_max * surface), mid: Math.round((cbreRef.renove_min + cbreRef.renove_max) / 2 * surface) } : null,
     } : null;
 
-    // Vacance BP de la ville
+    // Paramètres BP de la ville
     const vacBp = villes[ville].vacance_bp_pct / 100;
-    // Vacance marché Cushman
-    const vacMarche = villes[ville].ref_cushman ? (villes[ville].ref_cushman.taux_vacance_marche_pct / 100) : null;
+    const franchisePct = villes[ville].franchise_decote_pct / 100;
+    const vacMarche = villes[ville].ref_cushman ? villes[ville].ref_cushman.taux_vacance_marche_pct : null;
 
-    // Loyer net = loyer brut × (1 - vacance)
-    const netFactor = 1 - vacBp;
+    // 3 niveaux de loyer :
+    // - Facial (brut) : loyer affiché
+    // - Net vacance : facial × (1 - vacance)
+    // - Économique : facial × (1 - vacance) × (1 - franchise) — le VRAI loyer perçu
+    const facteurVacance = 1 - vacBp;
+    const facteurEco = facteurVacance * (1 - franchisePct);
 
     villes[ville].transactions.push({
       adresse: adresse,
@@ -1576,37 +1587,47 @@ function buildBureauxAdressesJson() {
       surface_m2: Math.round(surface * 10) / 10,
       prix_m2: Math.round(pm2),
       segment: r.bucket,
+      profil: r.profil || "bureau", // bureau | retail_probable | activite_probable
       // Méthode 1 : cap rate
       loyer_caprate: {
-        m2_an_brut: loyerCapRate_m2,
-        m2_an_net: loyerCapRate_m2 ? Math.round(loyerCapRate_m2 * netFactor) : null,
-        total_an_brut: loyerCapRate_total,
-        total_an_net: loyerCapRate_total ? Math.round(loyerCapRate_total * netFactor) : null,
+        m2_an_facial: loyerCapRate_m2,
+        m2_an_net_vacance: loyerCapRate_m2 ? Math.round(loyerCapRate_m2 * facteurVacance) : null,
+        m2_an_economique: loyerCapRate_m2 ? Math.round(loyerCapRate_m2 * facteurEco) : null,
+        total_an_facial: loyerCapRate_total,
+        total_an_net_vacance: loyerCapRate_total ? Math.round(loyerCapRate_total * facteurVacance) : null,
+        total_an_economique: loyerCapRate_total ? Math.round(loyerCapRate_total * facteurEco) : null,
         yield_applique: yieldSec,
       },
       // Méthode 2 : CBRE
       loyer_cbre: loyerCbre ? {
         ...loyerCbre,
-        // Net après vacance
-        usage_mid_m2_net: loyerCbre.usage_mid_m2 ? Math.round(loyerCbre.usage_mid_m2 * netFactor) : null,
-        renove_mid_m2_net: loyerCbre.renove_mid_m2 ? Math.round(loyerCbre.renove_mid_m2 * netFactor) : null,
-        usage_total_an_net: loyerCbre.usage_total_an ? Math.round(loyerCbre.usage_total_an.mid * netFactor) : null,
-        renove_total_an_net: loyerCbre.renove_total_an ? Math.round(loyerCbre.renove_total_an.mid * netFactor) : null,
+        // Économique (après vacance + franchise)
+        usage_mid_m2_economique: loyerCbre.usage_mid_m2 ? Math.round(loyerCbre.usage_mid_m2 * facteurEco) : null,
+        renove_mid_m2_economique: loyerCbre.renove_mid_m2 ? Math.round(loyerCbre.renove_mid_m2 * facteurEco) : null,
+        usage_total_an_economique: loyerCbre.usage_total_an ? Math.round(loyerCbre.usage_total_an.mid * facteurEco) : null,
+        renove_total_an_economique: loyerCbre.renove_total_an ? Math.round(loyerCbre.renove_total_an.mid * facteurEco) : null,
       } : null,
-      // Vacance appliquée
-      vacance: {
-        taux_bp_pct: villes[ville].vacance_bp_pct,
-        taux_marche_pct: vacMarche ? Math.round(vacMarche * 1000) / 10 : null,
-        source: "Cushman & Wakefield T4 2025",
+      // Hypothèses BP appliquées
+      hypotheses_bp: {
+        vacance_frictionnelle_pct: villes[ville].vacance_bp_pct,
+        vacance_marche_pct: vacMarche,
+        franchise_mois: villes[ville].franchise_mois,
+        franchise_decote_pct: villes[ville].franchise_decote_pct,
+        bail_duree_mois: DUREE_BAIL_MOIS,
+        source_vacance: "Grille zonale expert — CBRE/Cushman/JLL T4 2025",
+        source_franchise: "Immostat T3 2025 retraité petites surfaces",
       },
       coordonnees: (r.lng && r.lat) ? { lng: r.lng, lat: r.lat } : null,
     });
   }
 
-  // Sort transactions by street within each ville
+  // Sort transactions + stats par profil
   for (const v of Object.values(villes)) {
     v.transactions.sort((a, b) => a.voie.localeCompare(b.voie) || a.numero.localeCompare(b.numero));
     v.nb_transactions = v.transactions.length;
+    v.nb_bureaux = v.transactions.filter(t => t.profil === "bureau").length;
+    v.nb_retail = v.transactions.filter(t => t.profil === "retail_probable").length;
+    v.nb_activite = v.transactions.filter(t => t.profil === "activite_probable").length;
   }
 
   return {
@@ -1666,7 +1687,15 @@ function transformCommercialPipeline(rawRows) {
     let bucket = null;
     for (const b of COMM_BUCKETS) { if (g.surf >= b.min && g.surf < b.max) { bucket = b.id; break; } }
     if (!bucket) continue;
-    muts.push({ id, dept:g.dept, codeC:g.codeC, commune:g.commune, bucket, pm2, surf:g.surf, ageDays, tw, w:tw>0?tw:1.0, adresseNum:g.adresseNum||"", adresseVoie:g.adresseVoie||"", codePostal:g.codePostal||"", vf:g.vf, date:g.date, lng:g.lng, lat:g.lat });
+    // Heuristique profil : bureau vs retail vs activité
+    // <80m² et prix/m² élevé = probable retail/boutique
+    // 80-5000m² = probable bureau
+    // >5000m² = entrepôt/centre commercial
+    let profil = "bureau";
+    if (g.surf < 80 && pm2 > 8000) profil = "retail_probable";
+    else if (g.surf < 50) profil = "retail_probable";
+    else if (g.surf > 5000) profil = "activite_probable";
+    muts.push({ id, dept:g.dept, codeC:g.codeC, commune:g.commune, bucket, pm2, surf:g.surf, ageDays, tw, w:tw>0?tw:1.0, adresseNum:g.adresseNum||"", adresseVoie:g.adresseVoie||"", codePostal:g.codePostal||"", vf:g.vf, date:g.date, lng:g.lng, lat:g.lat, profil });
   }
 
   // 4) Trimming MAD par (dept × bucket)
@@ -2121,6 +2150,53 @@ const YIELDS_2026 = {
   "Pôle de Roissy":                  { prime: 0.0750, sec: 0.0900 },
   "Reste Deuxième Couronne":         { prime: 0.0800, sec: 0.0950 },
 };
+
+// Vacance frictionnelle BP par submarket — grille expert (pas de ÷2.5)
+// Source: consensus CBRE/Cushman/JLL T4 2025 + ajustement petite surface 300-700m²
+const VACANCE_BP = {
+  "Paris QCA":                       0.05,
+  "Paris Centre Ouest (hors QCA)":   0.07,
+  "Paris Sud":                       0.07,
+  "Paris Nord-Est":                   0.09,
+  "La Défense":                      0.13,
+  "Neuilly-Levallois":               0.07,
+  "Boucle Sud":                      0.08,
+  "Péri-Défense":                    0.10,
+  "Boucle Nord":                     0.10,
+  "Première Couronne Nord":          0.18,
+  "Première Couronne Est":           0.12,
+  "Première Couronne Sud":           0.10,
+  "Deuxième Couronne Sud":           0.12,
+  "Ville Nouvelle Saint-Quentin-en-Yvelines": 0.12,
+  "Ville Nouvelle Marne-la-Vallée":  0.12,
+  "Ville Nouvelle Cergy":            0.12,
+  "Pôle de Roissy":                  0.12,
+  "Reste Deuxième Couronne":         0.12,
+};
+
+// Franchise locative par submarket — mois sur bail 6 ans ferme (petite surface 300-700m²)
+// Source: Immostat T3 2025 retraité pour petites surfaces
+const FRANCHISE_MOIS = {
+  "Paris QCA":                       5,
+  "Paris Centre Ouest (hors QCA)":   7,
+  "Paris Sud":                       7,
+  "Paris Nord-Est":                   9,
+  "La Défense":                      15,
+  "Neuilly-Levallois":               6,
+  "Boucle Sud":                      7,
+  "Péri-Défense":                    12,
+  "Boucle Nord":                     10,
+  "Première Couronne Nord":          15,
+  "Première Couronne Est":           10,
+  "Première Couronne Sud":           9,
+  "Deuxième Couronne Sud":           12,
+  "Ville Nouvelle Saint-Quentin-en-Yvelines": 12,
+  "Ville Nouvelle Marne-la-Vallée":  10,
+  "Ville Nouvelle Cergy":            12,
+  "Pôle de Roissy":                  12,
+  "Reste Deuxième Couronne":         12,
+};
+const DUREE_BAIL_MOIS = 72; // 6 ans ferme
 
 // Mapping commune (normalisé) → submarket Cushman
 const COMMUNE_SUBMARKET = {};
