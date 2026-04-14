@@ -1545,7 +1545,7 @@ function buildBureauxAdressesJson() {
     const q75 = arr => arr.length < 4 ? (arr[arr.length - 1] || null) : arr[Math.floor(arr.length * 0.75)];
 
     const sm = getSubmarket(nom);
-    const cbreSecteur = getCbreSecteur(nom);
+    const cbreSecteur = getCbreSecteur(nom, data.dept);
     const cbre = getCbreData(cbreSecteur);
     const cushData = sm ? CUSHMAN_DATA[sm] : null;
     const vacMarche = cushData ? cushData.taux_vacance : null;
@@ -2508,13 +2508,26 @@ function initCbreMapping() {
 }
 initCbreMapping();
 
-function getCbreSecteur(communeName) {
+// Fallback CBRE par département — pour communes non mappées individuellement
+const CBRE_DEPT_FALLBACK = {
+  "92": "Reste Hauts-de-Seine",
+  "93": "Reste Seine-Saint-Denis",
+  "94": "Reste Val-de-Marne",
+  "91": "Reste Essonne",
+  "78": "Reste Yvelines",
+  "95": "Reste Val d'Oise",
+  "77": "Reste Seine-et-Marne",
+};
+
+function getCbreSecteur(communeName, dept) {
   const n = norm(communeName);
   if (COMMUNE_CBRE[n]) return COMMUNE_CBRE[n];
   // Fuzzy match
   for (const [k, v] of Object.entries(COMMUNE_CBRE)) {
     if (n.includes(k) || k.includes(n)) return v;
   }
+  // Fallback par département
+  if (dept && CBRE_DEPT_FALLBACK[dept]) return CBRE_DEPT_FALLBACK[dept];
   return null;
 }
 
@@ -2607,7 +2620,7 @@ function buildCrossCheck() {
     const yields = sm ? YIELDS_2026[sm] : null;
 
     // CBRE lookup (plus granulaire)
-    const cbreSecteur = getCbreSecteur(loc.nom);
+    const cbreSecteur = getCbreSecteur(loc.nom, loc.departement);
     const cbre = getCbreData(cbreSecteur);
 
     if (!sm && !cbre) continue;
