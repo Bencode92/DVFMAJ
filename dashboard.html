@@ -422,28 +422,9 @@
         <div id="exCommStatus" style="font-size:.82rem;margin-bottom:.75rem;display:none"></div>
         <pre id="commJsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#ffaa00"></pre>
 
-        <!-- RÉFÉRENTIEL BUREAUX IDF -->
-        <h3 style="color:#ff6644;font-size:.95rem;margin:1.5rem 0 .75rem">Référentiel Bureaux IDF — referentiel_bureaux.json</h3>
-        <p style="color:#888;font-size:.78rem;margin-bottom:.75rem">Prix DVF + Loyers Cushman + Yields expert + Cap rate estimé — par commune × segment</p>
-        <div class="cards">
-          <div class="card"><div class="label">Communes</div><div class="value" id="exRefComm" style="color:#ff6644">-</div></div>
-          <div class="card"><div class="label">Submarkets Cushman</div><div class="value" id="exRefCush" style="color:#ff6644">-</div></div>
-        </div>
-        <div style="display:flex;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
-          <button class="extract-btn" id="btnDlRef">Telecharger</button>
-          <button class="extract-btn" id="btnCopyRef">Copier</button>
-          <button class="extract-btn push" id="btnPushRefDVF" style="background:#ff6644">Push DVFMAJ</button>
-          <div style="display:flex;align-items:center;gap:.4rem;flex:1;min-width:250px">
-            <input id="pushRefPath" type="text" placeholder="Bencode92/studyforge/contents/data/referentiel_bureaux.json" style="flex:1;background:#161b2e;border:1px solid #2a3050;color:#e0e0e0;padding:.45rem .6rem;border-radius:6px;font-size:.8rem" />
-            <button class="extract-btn push" id="btnPushRefOther" style="background:#ff6644">Push</button>
-          </div>
-        </div>
-        <div id="exRefStatus" style="font-size:.82rem;margin-bottom:.75rem;display:none"></div>
-        <pre id="refJsonPreview" style="background:#0d1117;border:1px solid #2a3050;border-radius:8px;padding:1rem;max-height:30vh;overflow:auto;font-size:.72rem;color:#ff6644"></pre>
-
         <!-- BUREAUX PAR ADRESSE -->
         <h3 style="color:#00ccff;font-size:.95rem;margin:1.5rem 0 .75rem">Bureaux par adresse — bureaux_adresses.json</h3>
-        <p style="color:#888;font-size:.78rem;margin-bottom:.75rem">Toutes les transactions DVF bureaux avec adresse complete (n° + rue + ville), loyers CBRE et Cushman separes</p>
+        <p style="color:#888;font-size:.78rem;margin-bottom:.75rem">Transactions DVF bureaux >= 100m² — loyer CBRE (primaire) + cap rate (controle) + vacance + franchise + PNR</p>
         <div class="cards">
           <div class="card"><div class="label">Transactions</div><div class="value" style="color:#00ccff" id="exBxTx">-</div></div>
           <div class="card"><div class="label">Villes</div><div class="value" style="color:#00ccff" id="exBxVilles">-</div></div>
@@ -1492,7 +1473,10 @@ function buildBureauxAdressesJson() {
   const communesTx = {}; // commune → [transactions]
   const transactions = [];
 
-  for (const r of BUREAUX_RAW) {
+  // Filtre : surface >= 100m² uniquement (< 100m² = résidentiel/retail, pas bureau)
+  const bureaux = BUREAUX_RAW.filter(r => r.surf >= 100 && r.profil === "bureau");
+
+  for (const r of bureaux) {
     const commune = r.commune || "INCONNU";
     const sm = getSubmarket(commune);
     // Yield avec prime petite surface (+25bp si <700m²)
