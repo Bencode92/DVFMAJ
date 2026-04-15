@@ -1501,12 +1501,14 @@ function buildBureauxAdressesJson() {
     const vacBp = sm && VACANCE_BP[sm] != null ? VACANCE_BP[sm] : 0.10;
     const franchMois = sm && FRANCHISE_MOIS[sm] != null ? FRANCHISE_MOIS[sm] : 9;
     const franchPct = franchMois / DUREE_BAIL_MOIS;
+    const pnrPct = sm && CHARGES_PNR[sm] != null ? CHARGES_PNR[sm] : 0.10;
     const facteurEco = (1 - vacBp) * (1 - franchPct);
+    const facteurNetPnr = facteurEco * (1 - pnrPct);
 
     const pm2 = r.pm2;
     const surface = r.surf;
     const prixTotal = r.vf;
-    const prixTotalAcq = Math.round(prixTotal * (1 + FRAIS_ACQUISITION_PCT)); // prix tout compris
+    const prixTotalAcq = Math.round(prixTotal * (1 + FRAIS_ACQUISITION_PCT));
 
     // CBRE = source primaire loyer (si dispo)
     const cbreSecteur = getCbreSecteur(commune, r.dept);
@@ -1520,12 +1522,13 @@ function buildBureauxAdressesJson() {
     // Loyer primaire = CBRE si dispo, sinon cap rate (fallback)
     const loyerFacial = cbreUsageMid || loyerCaprate;
     const loyerEco = Math.round(loyerFacial * facteurEco);
+    const loyerNetPnr = Math.round(loyerFacial * facteurNetPnr);
     const source_loyer = cbreUsageMid ? "cbre" : "caprate";
 
     // Rendements
     const rdtBrut = prixTotal > 0 ? Math.round(loyerFacial * surface / prixTotal * 100 * 100) / 100 : null;
     const rdtEco = prixTotal > 0 ? Math.round(loyerEco * surface / prixTotal * 100 * 100) / 100 : null;
-    const rdtNetNet = prixTotalAcq > 0 ? Math.round(loyerEco * surface / prixTotalAcq * 100 * 100) / 100 : null;
+    const rdtNetNet = prixTotalAcq > 0 ? Math.round(loyerNetPnr * surface / prixTotalAcq * 100 * 100) / 100 : null;
 
     // Sensibilité yield ±50bp
     const loyerCapLow = Math.round(pm2 * (yieldSec - 0.005));
@@ -1554,6 +1557,8 @@ function buildBureauxAdressesJson() {
       // Loyer primaire (CBRE prioritaire)
       loyer_facial_m2_an: loyerFacial,
       loyer_eco_m2_an: loyerEco,
+      loyer_net_pnr_m2_an: loyerNetPnr,
+      charges_pnr_pct: Math.round(pnrPct * 100),
       source_loyer: source_loyer,
       // Contrôle cap rate
       loyer_caprate_m2_an: loyerCaprate,
@@ -1571,7 +1576,7 @@ function buildBureauxAdressesJson() {
 
     // Accumuler pour stats commune
     if (!communesTx[commune]) communesTx[commune] = { dept: r.dept, txs: [] };
-    communesTx[commune].txs.push({ pm2, loyerFacial, loyerEco, rdtEco, rdtNetNet, surface });
+    communesTx[commune].txs.push({ pm2, loyerFacial, loyerEco, loyerNetPnr, rdtEco, rdtNetNet, surface });
   }
 
   // Construire index communes (fallback agrégé)
@@ -1582,6 +1587,7 @@ function buildBureauxAdressesJson() {
     const prices = txs.map(t => t.pm2).sort((a, b) => a - b);
     const loyersFacial = txs.map(t => t.loyerFacial).sort((a, b) => a - b);
     const loyersEco = txs.map(t => t.loyerEco).sort((a, b) => a - b);
+    const loyersNetPnr = txs.map(t => t.loyerNetPnr).sort((a, b) => a - b);
     const rdtsEco = txs.filter(t => t.rdtEco != null).map(t => t.rdtEco).sort((a, b) => a - b);
     const rdtsNN = txs.filter(t => t.rdtNetNet != null).map(t => t.rdtNetNet).sort((a, b) => a - b);
 
@@ -1615,6 +1621,8 @@ function buildBureauxAdressesJson() {
       loyer: {
         facial_median_m2_an: Math.round(median(loyersFacial)),
         eco_median_m2_an: Math.round(median(loyersEco)),
+        net_pnr_median_m2_an: Math.round(median(loyersNetPnr)),
+        charges_pnr_pct: sm && CHARGES_PNR[sm] != null ? Math.round(CHARGES_PNR[sm] * 100) : 10,
         cbre_usage_min_m2_an: cbre ? (parseInt(cbre.usage_min) || null) : null,
         cbre_usage_mid_m2_an: cbreUsageMid,
         cbre_usage_max_m2_an: cbre ? (parseInt(cbre.usage_max) || null) : null,
@@ -2202,6 +2210,28 @@ const VACANCE_BP = {
 const PRIME_PETITE_SURFACE_BP = 0.0025;
 // Frais d'acquisition (DMTO + honoraires)
 const FRAIS_ACQUISITION_PCT = 0.065;
+// Charges PNR (Provisions Non Récupérables) par submarket
+// Inclut : charges propriétaire, gestion, assurance PNO, taxe foncière non refact., art. 606
+const CHARGES_PNR = {
+  "Paris QCA":                       0.08,
+  "Paris Centre Ouest (hors QCA)":   0.08,
+  "Paris Sud":                       0.09,
+  "Paris Nord-Est":                   0.10,
+  "La Défense":                      0.10,
+  "Neuilly-Levallois":               0.08,
+  "Boucle Sud":                      0.09,
+  "Péri-Défense":                    0.10,
+  "Boucle Nord":                     0.10,
+  "Première Couronne Nord":          0.12,
+  "Première Couronne Est":           0.11,
+  "Première Couronne Sud":           0.10,
+  "Deuxième Couronne Sud":           0.11,
+  "Ville Nouvelle Saint-Quentin-en-Yvelines": 0.11,
+  "Ville Nouvelle Marne-la-Vallée":  0.11,
+  "Ville Nouvelle Cergy":            0.12,
+  "Pôle de Roissy":                  0.11,
+  "Reste Deuxième Couronne":         0.12,
+};
 
 // Franchise locative par submarket — mois sur bail 6 ans ferme (petite surface 300-700m²)
 // Source: Immostat T3 2025 retraité pour petites surfaces
