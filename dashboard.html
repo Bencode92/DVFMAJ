@@ -494,7 +494,6 @@ let VILLES_JSON = null;
 let COMMERCIAL_JSON = null;
 let BUREAUX_RAW = []; // raw commercial transactions with addresses
 let BUREAUX_ADRESSES_JSON = null;
-let REFERENTIEL_JSON = null;
 let sortCol = null, sortAsc = true;
 
 // Commercial surface buckets
@@ -829,7 +828,7 @@ async function runAnalysis() {
     // 8) Build JSONs
     VILLES_JSON = buildVillesJson(STATS);
     COMMERCIAL_JSON = buildCommercialJson(COMM_STATS);
-    REFERENTIEL_JSON = buildReferentielBureaux(COMM_STATS);
+    // REFERENTIEL_JSON supprimé — remplacé par bureaux_adresses.json
 
     // 8b) Load CBRE data for address-level export
     try {
@@ -1393,75 +1392,6 @@ function parseCushmanCSV(text) {
 }
 
 // ===================================================================
-// BUILD REFERENTIEL BUREAUX JSON
-// ===================================================================
-function buildReferentielBureaux(commStats) {
-  const map = {};
-  for (const r of commStats) {
-    const nom = norm(r.nom_commune);
-    const k = nom + "|" + r.code_departement;
-    if (!map[k]) {
-      const sm = getSubmarket(r.code_commune, r.code_departement);
-      const y = sm ? YIELDS[sm] : null;
-      const cush = sm ? CUSHMAN_DATA[sm] : null;
-      map[k] = {
-        nom, code_insee: r.code_commune, departement: r.code_departement,
-        submarket: sm || "Non mappé",
-        prix_vente: {},
-        loyers: {
-          yield_secondaire_pct: y ? y.sec : null,
-          yield_prime_pct: y ? y.prime : null,
-          cushman_prime_m2_an: cush ? cush.loyer_prime : null,
-          cushman_1re_main_m2_an: cush ? cush.loyer_1re_main : null,
-          cushman_2de_main_m2_an: cush ? cush.loyer_2de_main : null,
-          taux_vacance_pct: cush ? cush.taux_vacance : null,
-        },
-      };
-    }
-    const seg = r.bucket;
-    const segKey = seg === "S1" ? "S1_boutique" : seg === "S2" ? "S2_local" : seg === "S3" ? "S3_plateau" : "S4_immeuble";
-    map[k].prix_vente[segKey] = {
-      median: Math.round(r.ref_m2 * 100) / 100,
-      p25: r.p25 ? Math.round(r.p25 * 100) / 100 : null,
-      p75: r.p75 ? Math.round(r.p75 * 100) / 100 : null,
-      nb_transactions: r.n_mut,
-      surface_mediane: r.surf_med ? Math.round(r.surf_med) : null,
-      fiabilite: r.fiabilite,
-    };
-  }
-
-  // Ajouter loyer estimé cap rate pour chaque commune
-  for (const loc of Object.values(map)) {
-    const y = loc.loyers.yield_secondaire_pct;
-    if (!y) continue;
-    // Prendre le prix médian tous segments pour le cap rate
-    const allPrices = Object.values(loc.prix_vente).map(s => s.median).filter(p => p > 0);
-    if (allPrices.length > 0) {
-      const avgPrice = allPrices.reduce((s, p) => s + p, 0) / allPrices.length;
-      loc.loyers.estime_caprate_m2_an = Math.round(avgPrice * y / 100);
-    }
-    // Cap rate par segment
-    for (const [seg, data] of Object.entries(loc.prix_vente)) {
-      if (data.median > 0 && y) {
-        data.loyer_estime_m2_an = Math.round(data.median * y / 100);
-      }
-    }
-  }
-
-  return {
-    referentiel_bureaux_idf: {
-      date_extraction: new Date().toISOString().split("T")[0],
-      source_prix: "DVF data.gouv.fr (transactions réelles)",
-      source_loyers_marche: "Cushman & Wakefield MarketBeat Bureaux IDF T4 2025",
-      yields_reference: "Consensus expert Q1 2026 (post-remontée taux)",
-      methode_loyer_estime: "Prix vente DVF × yield secondaire",
-      segments: { S1_boutique: "9-50m²", S2_local: "50-150m²", S3_plateau: "150-500m²", S4_immeuble: "500m²+" },
-      communes: Object.values(map).sort((a, b) => a.nom.localeCompare(b.nom)),
-    }
-  };
-}
-
-// ===================================================================
 // BUILD BUREAUX PAR ADRESSE JSON
 // Toutes les transactions commerciales avec adresse complète
 // Groupées par ville → rue → numéro, avec loyers CBRE + Cushman séparés
@@ -1999,14 +1929,6 @@ function renderExtract() {
     document.getElementById("exCommComm").textContent = COMMERCIAL_JSON.locaux.length;
     document.getElementById("commJsonPreview").textContent = JSON.stringify(COMMERCIAL_JSON, null, 4);
   }
-  // Référentiel bureaux
-  if (REFERENTIEL_JSON) {
-    const ref = REFERENTIEL_JSON.referentiel_bureaux_idf;
-    document.getElementById("exRefComm").textContent = ref.communes.length;
-    const withCush = ref.communes.filter(c => c.loyers.cushman_prime_m2_an != null).length;
-    document.getElementById("exRefCush").textContent = withCush + "/" + ref.communes.length;
-    document.getElementById("refJsonPreview").textContent = JSON.stringify(REFERENTIEL_JSON, null, 4);
-  }
   // Bureaux scorer
   if (BUREAUX_ADRESSES_JSON) {
     const m = BUREAUX_ADRESSES_JSON.meta;
@@ -2060,27 +1982,6 @@ function exMsg(m,ok){const el=document.getElementById("exStatus");el.style.displ
 function exCommMsg(m,ok){const el=document.getElementById("exCommStatus");el.style.display="block";el.style.color=ok?"#ffaa00":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
 
 // Référentiel bureaux extract
-function exRefMsg(m,ok){const el=document.getElementById("exRefStatus");el.style.display="block";el.style.color=ok?"#ff6644":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
-
-document.getElementById("btnDlRef").addEventListener("click", () => {
-  if(!REFERENTIEL_JSON) return;
-  const js=JSON.stringify(REFERENTIEL_JSON,null,4);
-  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([js],{type:"application/json"}));a.download="referentiel_bureaux.json";a.click();
-  exRefMsg("Telecharge",true);
-});
-document.getElementById("btnCopyRef").addEventListener("click", async () => {
-  if(!REFERENTIEL_JSON) return;
-  try{await navigator.clipboard.writeText(JSON.stringify(REFERENTIEL_JSON,null,4));exRefMsg("Copie !",true);}catch(e){exRefMsg("Erreur",false);}
-});
-document.getElementById("btnPushRefDVF").addEventListener("click", () => { if(REFERENTIEL_JSON) pushJson2(REPO,"output/referentiel_bureaux.json",REFERENTIEL_JSON,exRefMsg); });
-document.getElementById("btnPushRefOther").addEventListener("click", () => {
-  if(!REFERENTIEL_JSON) return;
-  const p=document.getElementById("pushRefPath").value.trim();
-  if(!p){exRefMsg("Entrer le chemin",false);return;}
-  const pts=p.split("/");if(pts.length<4){exRefMsg("Format: owner/repo/contents/path/file.json",false);return;}
-  pushJson2(pts[0]+"/"+pts[1],pts.slice(2).join("/").replace(/^contents\//,""),REFERENTIEL_JSON,exRefMsg);
-});
-
 // Bureaux par adresse extract
 function exBxMsg(m,ok){const el=document.getElementById("exBxStatus");el.style.display="block";el.style.color=ok?"#00ccff":"#ff4444";el.textContent=m;setTimeout(()=>el.style.display="none",4000);}
 
