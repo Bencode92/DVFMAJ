@@ -216,16 +216,11 @@
       <div style="margin-top:1.5rem;border-top:2px solid #aa88ff;padding-top:1.5rem">
         <h3 style="color:#aa88ff;font-size:1rem;margin-bottom:1rem">Donnees Commerciales & Bureaux IDF</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem">
-          <!-- Col 1: Submarkets Cushman -->
+          <!-- Col 1: Submarkets Cushman + CBRE (auto-chargé) -->
           <div>
-            <h4 style="color:#aa88ff;font-size:.85rem;margin-bottom:.75rem">Submarkets Cushman</h4>
-            <p style="color:#888;font-size:.78rem;margin-bottom:.5rem">Loyers bureaux IDF par submarket (source: MarketBeat T4 2025)</p>
-            <div id="ghSubmarketStatus" style="font-size:.8rem;margin-bottom:.5rem"><span style="color:#555">Chargement...</span></div>
-            <div class="drop-zone" id="dropZoneComm" style="padding:1rem;border-color:#aa88ff55">
-              <p style="font-size:.82rem">Glisser CSV Submarkets</p>
-              <p class="accepted" style="color:#aa88ff">submarkets_*.csv</p>
-              <input type="file" id="fileInputComm" accept=".csv" style="display:none" />
-            </div>
+            <h4 style="color:#aa88ff;font-size:.85rem;margin-bottom:.75rem">Donnees marche (auto)</h4>
+            <p style="color:#888;font-size:.78rem;margin-bottom:.5rem">Charges automatiquement depuis GitHub au demarrage</p>
+            <div id="ghSubmarketStatus" style="font-size:.8rem"><span style="color:#555">Chargement...</span></div>
           </div>
           <!-- Col 2: Indices INSEE -->
           <div>
@@ -658,39 +653,36 @@ async function loadGhFiles() {
 }
 
 // ===================================================================
-// COMMERCIAL DATA SECTION (onglet Donnees)
+// COMMERCIAL DATA — auto-chargé depuis GitHub
 // ===================================================================
-const dropZoneComm = document.getElementById("dropZoneComm");
-const fileInputComm = document.getElementById("fileInputComm");
-
-dropZoneComm.addEventListener("click", () => fileInputComm.click());
-dropZoneComm.addEventListener("dragover", e => { e.preventDefault(); dropZoneComm.classList.add("dragover"); });
-dropZoneComm.addEventListener("dragleave", () => dropZoneComm.classList.remove("dragover"));
-dropZoneComm.addEventListener("drop", e => { e.preventDefault(); dropZoneComm.classList.remove("dragover"); handleCommFile(e.dataTransfer.files[0]); });
-fileInputComm.addEventListener("change", () => { handleCommFile(fileInputComm.files[0]); fileInputComm.value = ""; });
-
-function handleCommFile(file) {
-  if (!file || !file.name.endsWith(".csv")) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    SUBMARKETS = parseSubmarketCSV(reader.result);
-    document.getElementById("ghSubmarketStatus").innerHTML =
-      `<span style="color:#aa88ff">${file.name} — ${SUBMARKETS.length} submarkets charges</span>`;
-  };
-  reader.readAsText(file);
-}
-
-// Load submarkets from GitHub on init
 async function loadGhSubmarkets() {
   const el = document.getElementById("ghSubmarketStatus");
+  let loaded = [];
   try {
-    const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data?ref=${BRANCH}`);
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const files = await r.json();
-    const smFiles = files.filter(f => (/^submarkets_/i.test(f.name) || /^loyers_bureaux/i.test(f.name)) && f.name.endsWith(".csv"));
-    if (smFiles.length > 0) {
-      el.innerHTML = smFiles.map(f =>
-        `<span style="color:#aa88ff;margin-right:.75rem">${f.name}</span>`
+    // Charger automatiquement les CSV depuis GitHub
+    // 1) Submarkets Cushman
+    try {
+      const resp = await fetch(RAW + "/data/submarkets_idf_t4_2025.csv");
+      if (resp.ok) {
+        SUBMARKETS = parseSubmarketCSV(await resp.text());
+        // Aussi remplir CUSHMAN_DATA
+        parseCushmanCSV(await (await fetch(RAW + "/data/submarkets_idf_t4_2025.csv")).text());
+        loaded.push("submarkets_idf_t4_2025.csv");
+      }
+    } catch(e) { console.warn("Submarkets:", e.message); }
+
+    // 2) CBRE loyers
+    try {
+      const resp = await fetch(RAW + "/data/loyers_bureaux_cbre_2026.csv");
+      if (resp.ok) {
+        CBRE_DATA = parseSubmarketCSV(await resp.text());
+        loaded.push("loyers_bureaux_cbre_2026.csv");
+      }
+    } catch(e) { console.warn("CBRE:", e.message); }
+
+    if (loaded.length > 0) {
+      el.innerHTML = loaded.map(f =>
+        `<span style="color:#00d4aa;margin-right:.5rem">✓ ${f}</span>`
       ).join("");
     } else {
       el.innerHTML = '<span style="color:#888">Aucun fichier commercial</span>';
