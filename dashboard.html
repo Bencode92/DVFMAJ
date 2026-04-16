@@ -1403,8 +1403,17 @@ function buildBureauxAdressesJson() {
   const communesTx = {}; // commune → [transactions]
   const transactions = [];
 
-  // Filtre : surface >= 100m² uniquement (< 100m² = résidentiel/retail, pas bureau)
-  const bureaux = BUREAUX_RAW.filter(r => r.surf >= 100 && r.profil === "bureau");
+  // Filtre qualité bureaux :
+  // - surface >= 100m² (< 100m² = résidentiel/retail)
+  // - prix/m² >= 1500€ (en dessous = vente suspecte : intra-groupe, judiciaire, erreur DVF)
+  // - prix/m² <= 20000€ (au-dessus = probablement retail luxe, pas bureau)
+  // - profil = bureau
+  const bureaux = BUREAUX_RAW.filter(r =>
+    r.surf >= 100 &&
+    r.profil === "bureau" &&
+    r.pm2 >= 1500 &&
+    r.pm2 <= 20000
+  );
 
   for (const r of bureaux) {
     const commune = r.commune || "INCONNU";
