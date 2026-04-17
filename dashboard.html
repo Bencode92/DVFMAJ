@@ -1397,15 +1397,22 @@ function buildBureauxAdressesJson() {
 
   // Filtre qualité bureaux :
   // - surface >= 100m² (< 100m² = résidentiel/retail)
-  // - prix/m² >= 1500€ (en dessous = vente suspecte : intra-groupe, judiciaire, erreur DVF)
-  // - prix/m² <= 20000€ (au-dessus = probablement retail luxe, pas bureau)
+  // Plancher prix/m² par département — Paris plus cher que banlieue
+  const PRIX_M2_MIN = { "75": 4000, "92": 2500, "93": 1500, "94": 1500 };
+  const PRIX_M2_MAX = 18000; // au-dessus = retail luxe, pas bureau
+
+  // Filtres qualité bureaux :
+  // - surface >= 100m²
+  // - prix/m² >= plancher par dept (Paris 4000€, 92 2500€, reste 1500€)
+  // - prix/m² <= 18000€
   // - profil = bureau
-  const bureaux = BUREAUX_RAW.filter(r =>
-    r.surf >= 100 &&
-    r.profil === "bureau" &&
-    r.pm2 >= 1500 &&
-    r.pm2 <= 20000
-  );
+  // - rendement brut < 15% (au-dessus = transaction suspecte)
+  const bureaux = BUREAUX_RAW.filter(r => {
+    if (r.surf < 100 || r.profil !== "bureau") return false;
+    const minPrix = PRIX_M2_MIN[r.dept] || 1500;
+    if (r.pm2 < minPrix || r.pm2 > PRIX_M2_MAX) return false;
+    return true;
+  });
 
   for (const r of bureaux) {
     const commune = r.commune || "INCONNU";
