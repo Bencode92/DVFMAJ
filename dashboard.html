@@ -450,7 +450,7 @@ const REPO = "Bencode92/DVFMAJ";
 const BRANCH = "main";
 const RAW = "https://raw.githubusercontent.com/" + REPO + "/" + BRANCH;
 
-const AS_OF = new Date(2025, 9, 31); // Oct 31, 2025
+const AS_OF = new Date(); // date du jour : les ventes récentes comptent (avant : figé au 31/10/2025)
 const HALF_LIFE_DAYS = 30.4375 * 9;  // v3: 9 mois (capture cycles taux)
 const Q_LOW = 0.10;
 const Q_HIGH = 0.90;
@@ -751,21 +751,21 @@ async function runAnalysis() {
       const pct = (i / depts.length) * 70;
       setProgress(pct, `Telechargement dept ${dept} (${i+1}/${depts.length})...`);
 
-      let csv;
-      try {
-        // Essai direct (CORS permissif sur certains browsers)
-        const resp = await fetch(DVF_API + dept);
-        if (resp.ok) { csv = await resp.text(); }
-        else throw new Error("direct failed");
-      } catch(e) {
-        // Fallback Worker proxy
-        setProgress(pct, `Dept ${dept} via proxy...`);
-        const resp = await fetch(`${WORKER_URL}/dvf/?dep=${dept}`);
-        if (!resp.ok) throw new Error(`Dept ${dept}: HTTP ${resp.status}`);
-        csv = await resp.text();
+      // Lecture en flux : on ne garde que les lignes utiles (sinon 230 Mo rien que pour Paris → onglet saturé)
+      // Le serveur data.gouv coupe parfois en plein flux (ECONNRESET) → jusqu'à 3 essais
+      let rows;
+      for (let essai = 1; ; essai++) {
+        try {
+          const resp = await fetch(DVF_API + dept);
+          if (!resp.ok) throw new Error(`Dept ${dept}: HTTP ${resp.status}`);
+          rows = await parseCSVStream(resp, n => setProgress(pct, `Dept ${dept} : ${n.toLocaleString("fr")} lignes lues...`));
+          break;
+        } catch (e) {
+          if (essai >= 3) throw new Error(`Dept ${dept} : ${e.message} (3 essais)`);
+          setProgress(pct, `Dept ${dept} : coupure, nouvel essai ${essai + 1}/3...`);
+          await sleep(3000);
+        }
       }
-
-      const rows = parseCSV(csv);
       allRows = allRows.concat(rows);
       setProgress(pct + 5, `Dept ${dept}: ${rows.length.toLocaleString("fr")} lignes`);
     }
@@ -774,16 +774,14 @@ async function runAnalysis() {
     // 2) Loyers depuis GitHub
     let loyerRows12 = [], loyerRows3p = [];
     try {
-      const r = await fetch(`${WORKER_URL}/github/${REPO}/contents/data?ref=${BRANCH}`);
-      if (r.ok) {
-        const files = await r.json();
-        for (const lf of files.filter(f => /^loyer_/i.test(f.name) && f.name.endsWith(".csv"))) {
-          setProgress(76, `Loyers: ${lf.name}...`);
-          const csv = await fetch(RAW + "/data/" + lf.name).then(r => r.text());
-          const rows = parseLoyerCSV(csv);
-          if (/1ou2p/i.test(lf.name)) loyerRows12 = rows;
-          else loyerRows3p = rows;
-        }
+      // Lecture directe (dépôt public) : le relais Worker est verrouillé depuis fin octobre
+      for (const name of ["loyer_1ou2p.csv", "loyer_3p.csv"]) {
+        setProgress(76, `Loyers: ${name}...`);
+        const r = await fetch(RAW + "/data/" + name);
+        if (!r.ok) throw new Error(`${name}: HTTP ${r.status}`);
+        const rows = parseLoyerCSV(await r.text());
+        if (/1ou2p/i.test(name)) loyerRows12 = rows;
+        else loyerRows3p = rows;
       }
     } catch(e) { console.warn("Loyers non charges:", e.message); }
 
@@ -893,6 +891,73 @@ function parseCSV(text) {
       lat: parseFloat(v[idx.latitude]) || null,
     });
   }
+  return rows;
+}
+
+function hash53(str) { // cyrb53 : empreinte 53 bits d'une ligne (Set de nombres, pas de 230 Mo de chaînes)
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
+// Même lecture que parseCSV, mais en flux et sans garder les lignes inutiles
+// (ventes uniquement ; appartements, maisons, dépendances, locaux ; adresse seulement pour les locaux)
+async function parseCSVStream(resp, onProgress) {
+  const reader = resp.body.getReader(), dec = new TextDecoder();
+  const rows = [];
+  let buf = "", idx = null, n = 0;
+  const seen = new Set();
+  const line = l => {
+    if (!idx) {
+      const h = l.split(","); idx = {};
+      ["id_mutation","date_mutation","nature_mutation","valeur_fonciere","type_local","surface_reelle_bati","nombre_pieces_principales","nom_commune","code_departement","code_commune","adresse_numero","adresse_nom_voie","code_postal","longitude","latitude"].forEach(c => { idx[c] = h.indexOf(c); });
+      return;
+    }
+    if (l.startsWith("id_mutation,")) return; // en-tête répété entre les pages de l'API
+    // L'API data.gouv renvoie des lignes en double/triple (nov. 2026) : sans ça, chaque vente
+    // compte 2-3 appartements et tout est écarté (« 1 seul appartement ») → résultat vide
+    const h = hash53(l);
+    if (seen.has(h)) return;
+    seen.add(h);
+    n++;
+    const v = l.split(",");
+    const nature = (v[idx.nature_mutation] || "").replace(/"/g, "");
+    if (nature !== "Vente") return;
+    const type = (v[idx.type_local] || "").replace(/"/g, "");
+    if (!type) return;
+    const r = {
+      id: v[idx.id_mutation] || "",
+      date: v[idx.date_mutation] || "",
+      nature, type,
+      vf: parseFloat(v[idx.valeur_fonciere]) || 0,
+      surf: parseFloat(v[idx.surface_reelle_bati]) || 0,
+      pieces: parseInt(v[idx.nombre_pieces_principales]) || 0,
+      commune: (v[idx.nom_commune] || "").replace(/"/g, ""),
+      dept: (v[idx.code_departement] || "").replace(/"/g, ""),
+      codeC: (v[idx.code_commune] || "").replace(/"/g, ""),
+      adresseNum: "", adresseVoie: "", codePostal: "", lng: null, lat: null,
+    };
+    if (type.indexOf("ocal") >= 0) {
+      r.adresseNum = (v[idx.adresse_numero] || "").replace(/"/g, "");
+      r.adresseVoie = (v[idx.adresse_nom_voie] || "").replace(/"/g, "");
+      r.codePostal = (v[idx.code_postal] || "").replace(/"/g, "");
+      r.lng = parseFloat(v[idx.longitude]) || null;
+      r.lat = parseFloat(v[idx.latitude]) || null;
+    }
+    rows.push(r);
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    buf += done ? dec.decode() : dec.decode(value, { stream: true });
+    const parts = buf.split("\n");
+    buf = parts.pop();
+    for (const l of parts) if (l.trim()) line(l);
+    if (onProgress && n % 200000 < parts.length) onProgress(n);
+    if (done) break;
+  }
+  if (buf.trim()) line(buf);
   return rows;
 }
 
@@ -1738,7 +1803,10 @@ function buildVillesJson(stats) {
   const map = {};
   const bMap = {"1":"T1","2":"T2","3":"T3","4":"T4","5":"T5"};
   for (const r of stats) {
-    const nom = norm(r.nom_commune);
+    let nom = norm(r.nom_commune);
+    // L'API renvoie « Paris 10 » ; ImmoSim attend « PARIS 10E ARRONDISSEMENT » (ancien format)
+    const arr = /^PARIS (\d{1,2})$/.exec(nom);
+    if (arr) { const n = +arr[1]; nom = `PARIS ${n}${n === 1 ? "ER" : "E"} ARRONDISSEMENT`; }
     const k = nom + "|" + r.code_departement;
     if (!map[k]) map[k] = { nom, departement: r.code_departement, pieces: {} };
     const p = {};
